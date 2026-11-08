@@ -1,0 +1,249 @@
+// Digital Game Sales and Management Platform System
+// ไฟล์นี้เป็น "สัญญา" ที่ทั้งทีมใช้ร่วมกัน — ถ้าแก้ ต้องบอกอีกคนทุกครั้ง
+// แก้แล้วรัน: npx prisma migrate dev --name <ชื่อการแก้>
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- ผู้ใช้งาน ----------
+
+enum Role {
+  PLAYER
+  DEVELOPER
+  ADMIN
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String
+  role         Role     @default(PLAYER)
+  avatarUrl    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  developerProfile DeveloperProfile?
+  orders           Order[]
+  libraryItems     LibraryItem[]
+  cartItems        CartItem[]
+  wishlistItems    WishlistItem[]
+  reviews          Review[]
+  reviewReplies    ReviewReply[]
+  licenseKeys      LicenseKey[]
+}
+
+// โปรไฟล์ผู้พัฒนา — ต้องรอ admin อนุมัติก่อนจึงอัปโหลดเกมได้
+model DeveloperProfile {
+  id          String         @id @default(uuid())
+  userId      String         @unique
+  studioName  String
+  description String?
+  websiteUrl  String?
+  payoutEmail String?
+  status      ApprovalStatus @default(PENDING)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  games Game[]
+}
+
+// ---------- เกม ----------
+
+model Category {
+  id    String @id @default(uuid())
+  name  String @unique
+  slug  String @unique
+  games Game[] @relation("GameCategories")
+}
+
+model Game {
+  id          String         @id @default(uuid())
+  title       String
+  slug        String         @unique
+  description String
+  priceTHB    Decimal        @db.Decimal(10, 2)
+  coverUrl    String?
+  status      ApprovalStatus @default(PENDING)
+  rejectNote  String?
+  publishedAt DateTime?
+  // ความต้องการของระบบ
+  minSpec     String?
+  recSpec     String?
+  // ไฟล์เกม (จำกัด 200 MB ต่อเกม)
+  fileKey     String?
+  fileName    String?
+  fileSize    Int?
+  developerId String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  developer     DeveloperProfile @relation(fields: [developerId], references: [id], onDelete: Cascade)
+  categories    Category[]       @relation("GameCategories")
+  screenshots   GameScreenshot[]
+  reviews       Review[]
+  orderItems    OrderItem[]
+  libraryItems  LibraryItem[]
+  cartItems     CartItem[]
+  wishlistItems WishlistItem[]
+  licenseKeys   LicenseKey[]
+
+  @@index([status])
+  @@index([developerId])
+}
+
+model GameScreenshot {
+  id     String @id @default(uuid())
+  gameId String
+  url    String
+  order  Int    @default(0)
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+}
+
+// ---------- ตะกร้า / wishlist ----------
+
+model CartItem {
+  id     String   @id @default(uuid())
+  userId String
+  gameId String
+  addedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gameId])
+}
+
+model WishlistItem {
+  id      String   @id @default(uuid())
+  userId  String
+  gameId  String
+  addedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gameId])
+}
+
+// ---------- คำสั่งซื้อ / ชำระเงิน ----------
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  orderNumber String      @unique
+  userId      String
+  totalTHB    Decimal     @db.Decimal(10, 2)
+  status      OrderStatus @default(PENDING)
+  paidAt      DateTime?
+  createdAt   DateTime    @default(now())
+
+  user    User        @relation(fields: [userId], references: [id])
+  items   OrderItem[]
+  payment Payment?
+
+  @@index([userId])
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  gameId    String
+  priceTHB  Decimal @db.Decimal(10, 2)
+
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  game        Game         @relation(fields: [gameId], references: [id])
+  licenseKey  LicenseKey?
+}
+
+// จำลองการทำธุรกรรม (ตามขอบเขตในเอกสาร)
+model Payment {
+  id        String      @id @default(uuid())
+  orderId   String      @unique
+  method    String // "MOCK_CARD" | "MOCK_QR"
+  reference String      @unique
+  amountTHB Decimal     @db.Decimal(10, 2)
+  status    OrderStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+// ---------- สิทธิ์การใช้งาน / คลังเกม ----------
+
+model LicenseKey {
+  id          String    @id @default(uuid())
+  key         String    @unique
+  gameId      String
+  userId      String
+  orderItemId String    @unique
+  issuedAt    DateTime  @default(now())
+  revokedAt   DateTime?
+
+  game      Game      @relation(fields: [gameId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+}
+
+model LibraryItem {
+  id            String   @id @default(uuid())
+  userId        String
+  gameId        String
+  acquiredAt    DateTime @default(now())
+  downloadCount Int      @default(0)
+  lastDownload  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game @relation(fields: [gameId], references: [id])
+
+  @@unique([userId, gameId])
+}
+
+// ---------- รีวิว ----------
+
+model Review {
+  id        String   @id @default(uuid())
+  userId    String
+  gameId    String
+  rating    Int // 1-5
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game    Game          @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  replies ReviewReply[]
+
+  @@unique([userId, gameId]) // รีวิวได้เกมละ 1 ครั้ง และต้องมีเกมในคลังก่อน
+}
+
+model ReviewReply {
+  id        String   @id @default(uuid())
+  reviewId  String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
