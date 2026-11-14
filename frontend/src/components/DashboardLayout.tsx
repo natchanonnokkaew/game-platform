@@ -5,6 +5,8 @@ import { LogoMark } from "./icons";
 export interface SidebarItem {
   label: string;
   icon: ReactNode;
+  /** id ของส่วนในหน้านี้ที่จะเลื่อนไปเมื่อคลิก */
+  target: string;
   badge?: number | string;
 }
 
@@ -44,12 +46,11 @@ export default function DashboardLayout({
             ← กลับหน้าร้านค้า
           </Link>
           {items.map((item, i) => (
-            <button
+            <a
               key={item.label}
-              type="button"
+              href={`#${item.target}`}
               aria-current={i === activeIndex ? "page" : undefined}
               className={i === activeIndex ? "sidebar__link is-active" : "sidebar__link"}
-              style={{ border: "none", cursor: "pointer", font: "inherit", textAlign: "left", width: "100%" }}
             >
               <span style={{ flex: "none", display: "flex" }}>{item.icon}</span>
               <span className="grow">{item.label}</span>
@@ -71,7 +72,7 @@ export default function DashboardLayout({
                   {item.badge}
                 </span>
               )}
-            </button>
+            </a>
           ))}
         </nav>
 

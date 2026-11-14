@@ -99,7 +99,7 @@ export default function CommunityPage() {
   }
 
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "flex-start" }}>
+    <div className="community" style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "flex-start" }}>
       {/* ---------- แถบซ้าย ---------- */}
       <aside style={{ flex: "1 1 240px", display: "flex", flexDirection: "column", gap: 16 }}>
         <div className="card card--pad" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -182,7 +182,10 @@ export default function CommunityPage() {
       </aside>
 
       {/* ---------- ฟีด ---------- */}
-      <main style={{ flex: "999 1 520px", minWidth: 0, display: "flex", flexDirection: "column", gap: 20 }}>
+      <main
+        className="community__main"
+        style={{ flex: "999 1 520px", minWidth: 0, display: "flex", flexDirection: "column", gap: 20 }}
+      >
         <h1 className="page-title">คอมมูนิตี้</h1>
 
         <form

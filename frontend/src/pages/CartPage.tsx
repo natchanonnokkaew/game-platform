@@ -13,12 +13,17 @@ export default function CartPage() {
   const items = GAMES.filter((g) => cart.has(g.id));
   const total = items.reduce((sum, g) => sum + g.price, 0);
 
-  async function checkout() {
+  async function handleCheckout() {
     setPaying(true);
     // TODO: ต่อกับ POST /api/orders/checkout
     await new Promise((r) => setTimeout(r, 600));
-    cart.clear();
-    navigate("/library");
+    const order = cart.checkout(
+      items.map((g) => g.id),
+      items.map((g) => g.title),
+      total
+    );
+    // ส่งผลการชำระเงินไปให้หน้าคลังเกม เพื่อให้แบนเนอร์ขึ้นเฉพาะตอนจ่ายเงินสำเร็จ
+    navigate("/library", { state: { paid: order }, replace: true });
   }
 
   return (
@@ -131,7 +136,7 @@ export default function CartPage() {
               </span>
             </div>
 
-            <button type="button" className="btn btn--primary btn--lg btn--block" onClick={checkout} disabled={paying}>
+            <button type="button" className="btn btn--primary btn--lg btn--block" onClick={handleCheckout} disabled={paying}>
               {paying ? "กำลังดำเนินการ…" : "ชำระเงิน"}
             </button>
 

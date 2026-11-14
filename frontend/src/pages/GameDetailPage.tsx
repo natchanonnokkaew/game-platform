@@ -3,9 +3,11 @@ import { Link, useParams } from "react-router-dom";
 import {
   GAMES,
   GAME_REVIEWS,
+  PROFILE,
   RATING_BARS,
   SCREENSHOTS,
   SYSTEM_REQS,
+  type GameReview,
 } from "../data/mock";
 import { HeartIcon, LockIcon } from "../components/icons";
 import { useCart } from "../store/cart";
@@ -18,6 +20,9 @@ export default function GameDetailPage() {
 
   const [shot, setShot] = useState(0);
   const [stars, setStars] = useState(0);
+  const [reviewText, setReviewText] = useState("");
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [myReviews, setMyReviews] = useState<GameReview[]>([]);
   const cart = useCart();
 
   const current = SCREENSHOTS[shot];
@@ -200,7 +205,32 @@ export default function GameDetailPage() {
               aria-label="เขียนรีวิว"
               className="card card--pad"
               style={{ display: "flex", flexDirection: "column", gap: 12 }}
-              onSubmit={(e) => e.preventDefault()}
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (stars === 0) {
+                  setReviewError("กรุณาให้คะแนนก่อนส่งรีวิว");
+                  return;
+                }
+                if (!reviewText.trim()) {
+                  setReviewError("กรุณาเขียนความคิดเห็นของคุณ");
+                  return;
+                }
+                // TODO: ต่อกับ POST /api/reviews
+                setMyReviews((prev) => [
+                  {
+                    author: PROFILE.name,
+                    initial: PROFILE.initial,
+                    avatarColor: "#3B5A9A",
+                    stars,
+                    text: reviewText.trim(),
+                    meta: "เพิ่งเขียนเมื่อสักครู่",
+                  },
+                  ...prev,
+                ]);
+                setStars(0);
+                setReviewText("");
+                setReviewError(null);
+              }}
             >
               <div className="row" style={{ gap: 12 }}>
                 <span style={{ fontWeight: 600 }}>ให้คะแนน</span>
@@ -236,17 +266,32 @@ export default function GameDetailPage() {
 
               <div className="field">
                 <label htmlFor="review-text">ความคิดเห็นของคุณ</label>
-                <textarea id="review-text" rows={3} placeholder="เล่าประสบการณ์ของคุณกับเกมนี้…" />
+                <textarea
+                  id="review-text"
+                  rows={3}
+                  placeholder="เล่าประสบการณ์ของคุณกับเกมนี้…"
+                  value={reviewText}
+                  onChange={(e) => {
+                    setReviewText(e.target.value);
+                    setReviewError(null);
+                  }}
+                />
               </div>
+
+              {reviewError && (
+                <p role="alert" style={{ margin: 0, color: "var(--danger-fg)", fontSize: 14 }}>
+                  {reviewError}
+                </p>
+              )}
 
               <button type="submit" className="btn btn--primary" style={{ alignSelf: "flex-end", height: 44 }}>
                 ส่งรีวิว
               </button>
             </form>
 
-            {GAME_REVIEWS.map((r) => (
+            {[...myReviews, ...GAME_REVIEWS].map((r, i) => (
               <article
-                key={r.author}
+                key={`${r.author}-${i}`}
                 className="card card--pad"
                 style={{ display: "flex", flexDirection: "column", gap: 10 }}
               >

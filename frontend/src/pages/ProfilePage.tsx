@@ -1,10 +1,15 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ACTIVITY, MY_POSTS, MY_REVIEWS, PROFILE, RECENT_GAMES } from "../data/mock";
+import { ACTIVITY, GAMES, MY_POSTS, MY_REVIEWS, PROFILE, RECENT_GAMES } from "../data/mock";
 import { PencilIcon, ShareIcon } from "../components/icons";
 
 const TABS = ["ภาพรวม", "เกมในคลัง", "รีวิว", "โพสต์คอมมูนิตี้"] as const;
 type Tab = (typeof TABS)[number];
+
+/** หา slug ของเกมจากชื่อ เพื่อลิงก์ไปหน้ารายละเอียดเกม */
+function gameSlug(title: string) {
+  return GAMES.find((g) => g.title === title)?.slug ?? "";
+}
 
 function CoverBanner() {
   return (
@@ -299,7 +304,12 @@ export default function ProfilePage() {
           {MY_REVIEWS.map((r) => (
             <article key={r.game} className="card card--pad" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <div className="row row--between" style={{ flexWrap: "nowrap" }}>
-                <b>{r.game}</b>
+                <Link
+                  to={`/games/${gameSlug(r.game)}`}
+                  style={{ color: "var(--text)", fontWeight: 700, textDecoration: "none" }}
+                >
+                  {r.game}
+                </Link>
                 <span className="star">{r.stars}</span>
               </div>
               <p className="dim" style={{ margin: 0 }}>

@@ -1,17 +1,67 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { ORDERS, ORDER_STATUS, OWNED } from "../data/mock";
+import { useMemo, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { GAMES, ORDERS, ORDER_STATUS, OWNED, type OwnedGame } from "../data/mock";
 import { CheckCircleIcon, DownloadIcon } from "../components/icons";
+import { useCart, type PaidOrder } from "../store/cart";
+
+/** สร้าง License Key จำลองจาก id ของเกม ให้ได้ค่าเดิมทุกครั้งที่เรนเดอร์ */
+function mockLicenseKey(seed: string) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  const block = () => {
+    let s = "";
+    for (let i = 0; i < 4; i++) {
+      h = (h * 1103515245 + 12345) >>> 0;
+      s += chars[h % chars.length];
+    }
+    return s;
+  };
+  return `HSG-${block()}-${block()}-${block()}`;
+}
 
 export default function LibraryPage() {
+  const location = useLocation();
+  const paid = (location.state as { paid?: PaidOrder } | null)?.paid;
+  const cart = useCart();
+
   const [sel, setSel] = useState(0);
   const [showKey, setShowKey] = useState(false);
-  const [banner, setBanner] = useState(true);
+  const [bannerClosed, setBannerClosed] = useState(false);
   const [query, setQuery] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const list = OWNED.filter((g) => g.title.toLowerCase().includes(query.trim().toLowerCase()));
-  const current = OWNED[sel];
+  /** คลังเกม = เกมตั้งต้น + เกมที่เพิ่งซื้อในเซสชันนี้ */
+  const owned = useMemo<OwnedGame[]>(() => {
+    const fresh = cart.purchased
+      .filter((id) => {
+        const g = GAMES.find((x) => x.id === id);
+        return g && !OWNED.some((o) => o.slug === g.slug);
+      })
+      .map((id) => {
+        const g = GAMES.find((x) => x.id === id)!;
+        const order = cart.newOrders.find((o) => o.items.includes(g.title));
+        return {
+          slug: g.slug,
+          title: g.title,
+          dev: g.dev,
+          color: g.color,
+          accent: g.accent,
+          size: "148 MB",
+          licenseKey: mockLicenseKey(g.id),
+          date: order?.date ?? "วันนี้",
+          order: order?.id ?? "—",
+          price: `฿${g.price}`,
+          status: "ใหม่ · ยังไม่ดาวน์โหลด",
+        } satisfies OwnedGame;
+      });
+    return [...fresh, ...OWNED];
+  }, [cart.purchased, cart.newOrders]);
+
+  const orders = useMemo(() => [...cart.newOrders, ...ORDERS], [cart.newOrders]);
+
+  const list = owned.filter((g) => g.title.toLowerCase().includes(query.trim().toLowerCase()));
+  const current = owned[Math.min(sel, owned.length - 1)];
   const masked = `${current.licenseKey.slice(0, 4)}••••-••••-${current.licenseKey.slice(-4)}`;
 
   async function copyKey() {
@@ -26,17 +76,19 @@ export default function LibraryPage() {
 
   return (
     <>
-      {banner && (
+      {/* แบนเนอร์นี้ขึ้นเฉพาะตอนเพิ่งชำระเงินสำเร็จเท่านั้น */}
+      {paid && !bannerClosed && (
         <div role="status" className="alert alert--ok">
           <span style={{ flex: "none", color: "var(--ok-fg)", display: "flex" }}>
             <CheckCircleIcon />
           </span>
           <span style={{ flex: 1 }}>
-            <b>ชำระเงินสำเร็จ</b> — Echo of Siam ถูกเพิ่มเข้าคลังเกมแล้ว คำสั่งซื้อ #ORD-24117 สถานะ FULFILLED
+            <b>ชำระเงินสำเร็จ</b> — {paid.titles.join(", ")} ถูกเพิ่มเข้าคลังเกมแล้ว คำสั่งซื้อ {paid.id}{" "}
+            ยอดรวม ฿{paid.total.toLocaleString()} สถานะ FULFILLED
           </span>
           <button
             type="button"
-            onClick={() => setBanner(false)}
+            onClick={() => setBannerClosed(true)}
             aria-label="ปิดข้อความ"
             style={{
               width: 40,
@@ -57,7 +109,7 @@ export default function LibraryPage() {
         <div>
           <h1 className="page-title">คลังเกมของฉัน</h1>
           <p className="muted" style={{ margin: 0 }}>
-            เป็นเจ้าของ {OWNED.length} เกม · สิทธิ์การใช้งานผูกกับบัญชีของคุณ
+            เป็นเจ้าของ {owned.length} เกม · สิทธิ์การใช้งานผูกกับบัญชีของคุณ
           </p>
         </div>
         <div role="search" style={{ flex: "0 1 320px" }}>
@@ -95,7 +147,7 @@ export default function LibraryPage() {
             </li>
           )}
           {list.map((g) => {
-            const index = OWNED.indexOf(g);
+            const index = owned.indexOf(g);
             const active = index === sel;
             return (
               <li key={g.slug}>
@@ -274,7 +326,7 @@ export default function LibraryPage() {
               </tr>
             </thead>
             <tbody>
-              {ORDERS.map((o) => (
+              {orders.map((o) => (
                 <tr key={o.id}>
                   <td className="mono">{o.id}</td>
                   <td>{o.date}</td>

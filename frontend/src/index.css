@@ -504,6 +504,12 @@ textarea:focus {
   outline: none;
 }
 
+input[readonly] {
+  color: var(--text-muted);
+  background: var(--surface-nav);
+  cursor: not-allowed;
+}
+
 input[type="radio"],
 input[type="checkbox"] {
   width: 18px;
@@ -790,6 +796,22 @@ tbody tr {
   gap: 24px;
 }
 
+/* เว้นที่ด้านบนเวลาเลื่อนมาจากเมนูแถบข้าง */
+.dash__main > [id],
+.dash__main [id^="sec-"] {
+  scroll-margin-top: 24px;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -936,6 +958,11 @@ tbody tr {
 /* ---------- จอเล็ก ---------- */
 
 @media (max-width: 900px) {
+  /* บนจอแคบ ให้ฟีดคอมมูนิตี้ขึ้นก่อนแถบข้าง ผู้ใช้จะได้ไม่ต้องเลื่อนผ่านเมนูยาว ๆ */
+  .community__main {
+    order: -1;
+  }
+
   .auth {
     grid-template-columns: 1fr;
   }
@@ -967,8 +994,28 @@ tbody tr {
     font-size: 28px;
   }
   .game-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 14px;
+  }
+
+  /* การ์ดเกมแคบเกินกว่าจะวางราคากับปุ่มไว้บรรทัดเดียว */
+  .game-card__foot {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .game-card__foot > .row {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .game-card__foot > .row > .btn {
+    flex: 1;
+  }
+
+  .game-card__title-art {
+    font-size: 19px;
   }
   .nav-search {
     order: 5;

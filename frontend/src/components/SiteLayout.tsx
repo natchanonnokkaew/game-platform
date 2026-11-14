@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { NavLink, Link, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Link, Outlet, useNavigate, useSearchParams } from "react-router-dom";
 import { CartIcon, HeartIcon, LogoMark, SearchIcon } from "./icons";
 import { useCart } from "../store/cart";
 
@@ -84,6 +84,37 @@ function UserMenu() {
   );
 }
 
+/** ช่องค้นหาหลัก — ส่งคำค้นไปหน้าร้านค้าผ่าน query string */
+function GlobalSearch() {
+  const [params] = useSearchParams();
+  const [q, setQ] = useState(params.get("q") ?? "");
+  const navigate = useNavigate();
+
+  return (
+    <form
+      className="nav-search"
+      role="search"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const term = q.trim();
+        navigate(term ? `/?q=${encodeURIComponent(term)}` : "/");
+      }}
+    >
+      <label htmlFor="global-search" className="sr-only">
+        ค้นหาเกม
+      </label>
+      <SearchIcon />
+      <input
+        id="global-search"
+        type="search"
+        placeholder="ค้นหาเกม ผู้พัฒนา หรือแท็ก"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+      />
+    </form>
+  );
+}
+
 export function Navbar() {
   const { count } = useCart();
 
@@ -108,13 +139,7 @@ export function Navbar() {
           ))}
         </nav>
 
-        <div className="nav-search" role="search">
-          <label htmlFor="global-search" className="sr-only">
-            ค้นหาเกม
-          </label>
-          <SearchIcon />
-          <input id="global-search" type="search" placeholder="ค้นหาเกม ผู้พัฒนา หรือแท็ก" />
-        </div>
+        <GlobalSearch />
 
         <div className="nav-actions">
           <Link to="/wishlist" className="icon-btn" aria-label="รายการที่ต้องการ">

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import GameCard from "../components/GameCard";
 import { FEATURED, GAMES, GENRES } from "../data/mock";
 import { useCart } from "../store/cart";
@@ -32,7 +32,8 @@ export default function StorePage() {
   const [price, setPrice] = useState<PriceBand>("all");
   const [rating, setRating] = useState<RatingBand>("all");
   const [sort, setSort] = useState<SortKey>("popular");
-  const [query, setQuery] = useState("");
+  const [params, setParams] = useSearchParams();
+  const query = params.get("q") ?? "";
   const cart = useCart();
 
   const counts = useMemo(() => {
@@ -199,26 +200,53 @@ export default function StorePage() {
             ))}
           </fieldset>
 
-          <div className="field">
-            <label htmlFor="catalog-filter">ค้นหาในผลลัพธ์</label>
-            <input
-              id="catalog-filter"
-              type="search"
-              placeholder="ชื่อเกมหรือผู้พัฒนา"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            onClick={() => {
+              setGenre("ทั้งหมด");
+              setPrice("all");
+              setRating("all");
+              setParams({});
+            }}
+          >
+            ล้างตัวกรองทั้งหมด
+          </button>
         </aside>
 
         <div style={{ flex: "999 1 640px", minWidth: 0, display: "flex", flexDirection: "column", gap: 20 }}>
           <div className="row row--between">
             <div>
               <h2 className="section-title" style={{ fontSize: 28 }}>
-                {genre === "ทั้งหมด" ? "เกมทั้งหมด" : `เกมประเภท ${genre}`}
+                {query
+                  ? `ผลการค้นหา “${query}”`
+                  : genre === "ทั้งหมด"
+                    ? "เกมทั้งหมด"
+                    : `เกมประเภท ${genre}`}
               </h2>
               <p className="muted" style={{ margin: 0, fontSize: 14 }}>
                 แสดง {shown.length} เกม
+                {query && (
+                  <>
+                    {" · "}
+                    <button
+                      type="button"
+                      onClick={() => setParams({})}
+                      style={{
+                        border: "none",
+                        background: "transparent",
+                        color: "var(--accent)",
+                        font: "inherit",
+                        fontSize: 14,
+                        padding: 0,
+                        cursor: "pointer",
+                        textDecoration: "underline",
+                      }}
+                    >
+                      ล้างคำค้นหา
+                    </button>
+                  </>
+                )}
               </p>
             </div>
             <label className="row muted" style={{ gap: 10, fontSize: 14 }}>

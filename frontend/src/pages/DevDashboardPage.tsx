@@ -10,12 +10,12 @@ import {
 } from "../components/icons";
 
 const SIDEBAR: SidebarItem[] = [
-  { label: "ภาพรวม", icon: <ChartIcon /> },
-  { label: "เกมของฉัน", icon: <GamepadIcon /> },
-  { label: "อัปโหลดเกม", icon: <UploadIcon /> },
-  { label: "รีวิวจากผู้เล่น", icon: <StarIcon /> },
-  { label: "รายงานยอดขาย", icon: <ReceiptIcon /> },
-  { label: "บัญชีผู้พัฒนา", icon: <UsersIcon /> },
+  { label: "ภาพรวม", icon: <ChartIcon />, target: "overview" },
+  { label: "รายงานยอดขาย", icon: <ReceiptIcon />, target: "sales" },
+  { label: "เกมของฉัน", icon: <GamepadIcon />, target: "my-games" },
+  { label: "อัปโหลดเกม", icon: <UploadIcon />, target: "upload" },
+  { label: "รีวิวจากผู้เล่น", icon: <StarIcon />, target: "reviews" },
+  { label: "บัญชีผู้พัฒนา", icon: <UsersIcon />, target: "account" },
 ];
 
 const MY_GAMES = [
@@ -71,7 +71,7 @@ export default function DevDashboardPage() {
       items={SIDEBAR}
       activeIndex={0}
       account={
-        <div className="panel" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="panel" id="account" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 6 }}>
           <span className="pill pill--ok" style={{ alignSelf: "flex-start" }}>
             อนุมัติแล้ว
           </span>
@@ -82,7 +82,7 @@ export default function DevDashboardPage() {
         </div>
       }
     >
-      <div className="row row--between">
+      <div className="row row--between" id="overview">
         <div>
           <h1 className="page-title">สวัสดี, Lotus Forge</h1>
           <p className="muted" style={{ margin: 0 }}>
@@ -103,7 +103,7 @@ export default function DevDashboardPage() {
       </div>
 
       {/* ---------- กราฟยอดขาย ---------- */}
-      <section className="card card--pad" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <section id="sales" className="card card--pad" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <div className="row row--between">
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 600 }}>ยอดขายรายวัน (ชุด)</h2>
@@ -177,7 +177,7 @@ export default function DevDashboardPage() {
       </section>
 
       {/* ---------- เกมของฉัน ---------- */}
-      <section className="stack" style={{ gap: 12 }}>
+      <section id="my-games" className="stack" style={{ gap: 12 }}>
         <h2 className="section-title">เกมของฉัน</h2>
         <div className="table-wrap">
           <table>
@@ -223,6 +223,7 @@ export default function DevDashboardPage() {
       <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "flex-start" }}>
         {/* ---------- อัปโหลดเกมใหม่ ---------- */}
         <section
+          id="upload"
           className="card card--pad"
           style={{ flex: "999 1 460px", minWidth: 0, display: "flex", flexDirection: "column", gap: 16 }}
         >
@@ -291,6 +292,7 @@ export default function DevDashboardPage() {
 
         {/* ---------- รีวิวที่รอการตอบกลับ ---------- */}
         <section
+          id="reviews"
           className="card card--pad"
           style={{ flex: "1 1 320px", display: "flex", flexDirection: "column", gap: 14 }}
         >

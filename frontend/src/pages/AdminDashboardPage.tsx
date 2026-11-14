@@ -64,12 +64,12 @@ export default function AdminDashboardPage() {
   );
 
   const sidebar: SidebarItem[] = [
-    { label: "ภาพรวม", icon: <ChartIcon /> },
-    { label: "อนุมัติเกม", icon: <GamepadIcon />, badge: pendingCount },
-    { label: "ผู้ใช้และผู้พัฒนา", icon: <UsersIcon /> },
-    { label: "คำสั่งซื้อและการชำระเงิน", icon: <ReceiptIcon /> },
-    { label: "หมวดหมู่เกม", icon: <TagIcon /> },
-    { label: "รายงานแพลตฟอร์ม", icon: <ShieldIcon /> },
+    { label: "ภาพรวม", icon: <ChartIcon />, target: "overview" },
+    { label: "อนุมัติเกม", icon: <GamepadIcon />, target: "queue", badge: pendingCount },
+    { label: "ผู้ใช้และผู้พัฒนา", icon: <UsersIcon />, target: "dev-requests" },
+    { label: "คำสั่งซื้อและการชำระเงิน", icon: <ReceiptIcon />, target: "orders" },
+    { label: "หมวดหมู่เกม", icon: <TagIcon />, target: "categories" },
+    { label: "รายงานแพลตฟอร์ม", icon: <ShieldIcon />, target: "overview" },
   ];
 
   function decide(id: string, value: Decision | null) {
@@ -100,7 +100,7 @@ export default function AdminDashboardPage() {
         </div>
       }
     >
-      <div>
+      <div id="overview">
         <h1 className="page-title">ภาพรวมแพลตฟอร์ม</h1>
         <p className="muted" style={{ margin: 0 }}>
           ข้อมูล ณ วันที่ 10 พ.ย. 2569
@@ -115,7 +115,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* ---------- คิวตรวจสอบเกม ---------- */}
-      <section className="stack" style={{ gap: 12 }}>
+      <section id="queue" className="stack" style={{ gap: 12 }}>
         <div>
           <h2 className="section-title">คิวตรวจสอบและอนุมัติเกม</h2>
           <p className="muted" style={{ margin: 0, fontSize: 14 }}>
@@ -178,7 +178,7 @@ export default function AdminDashboardPage() {
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "flex-start" }}>
         {/* ---------- คำขอเปิดบัญชีผู้พัฒนา ---------- */}
-        <section className="card card--pad" style={{ flex: "1 1 320px", display: "flex", flexDirection: "column", gap: 14 }}>
+        <section id="dev-requests" className="card card--pad" style={{ flex: "1 1 320px", display: "flex", flexDirection: "column", gap: 14 }}>
           <h2 style={{ fontSize: 18, fontWeight: 600 }}>คำขอเปิดบัญชีผู้พัฒนา</h2>
           {DEV_REQUESTS.map((d) => (
             <div key={d.name} className="row row--between" style={{ gap: 12, flexWrap: "nowrap" }}>
@@ -216,7 +216,7 @@ export default function AdminDashboardPage() {
         </section>
 
         {/* ---------- หมวดหมู่เกม ---------- */}
-        <section className="card card--pad" style={{ flex: "1 1 320px", display: "flex", flexDirection: "column", gap: 14 }}>
+        <section id="categories" className="card card--pad" style={{ flex: "1 1 320px", display: "flex", flexDirection: "column", gap: 14 }}>
           <h2 style={{ fontSize: 18, fontWeight: 600 }}>หมวดหมู่เกม</h2>
           <div className="row" style={{ gap: 8 }}>
             {CATEGORIES.map(([name, count]) => (
@@ -250,7 +250,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* ---------- คำสั่งซื้อล่าสุด ---------- */}
-      <section className="stack" style={{ gap: 12 }}>
+      <section id="orders" className="stack" style={{ gap: 12 }}>
         <h2 className="section-title">คำสั่งซื้อล่าสุด</h2>
         <div className="table-wrap">
           <table style={{ minWidth: 820 }}>
