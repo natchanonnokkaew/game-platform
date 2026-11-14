@@ -1,0 +1,244 @@
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { SEED_GAMES, type Game, type OrderRow } from "../data/mock";
+
+/**
+ * สถานะกลางของแพลตฟอร์ม — ใช้ร่วมกันทุกหน้า
+ *
+ * วงจรการทำงาน:
+ *   ผู้พัฒนาอัปโหลดเกม (PENDING) → ผู้ดูแลระบบอนุมัติ (APPROVED) → เกมขึ้นร้านค้า
+ *   → ผู้ใช้ใส่ตะกร้าและชำระเงิน → ได้ License Key และเกมเข้าคลัง → ดาวน์โหลดได้
+ *
+ * ตอนนี้เก็บไว้ในหน่วยความจำของเบราว์เซอร์ (รีเฟรชแล้วกลับไปค่าตั้งต้น)
+ * เมื่อต่อ backend แล้วให้แทนที่ด้วยการเรียก API ใน lib/api.ts
+ */
+
+export interface LibraryEntry {
+  gameId: string;
+  licenseKey: string;
+  acquiredAt: string;
+  orderId: string;
+  pricePaid: number;
+  downloadCount: number;
+}
+
+export interface PaidOrder {
+  id: string;
+  titles: string[];
+  total: number;
+}
+
+export interface NewGameDraft {
+  title: string;
+  price: number;
+  genre: string;
+  description: string;
+  sizeMB: number;
+  /** รูปปกที่ผู้พัฒนาอัปโหลด (object URL ของไฟล์ที่เลือก) */
+  coverUrl?: string | null;
+}
+
+interface ShopValue {
+  /* ---- คลังข้อมูลเกม ---- */
+  games: Game[];
+  approvedGames: Game[];
+  pendingGames: Game[];
+  gamesByDev: (dev: string) => Game[];
+  findGame: (slug: string) => Game | undefined;
+  submitGame: (draft: NewGameDraft, dev: string) => Game;
+  approveGame: (id: string) => void;
+  rejectGame: (id: string, note?: string) => void;
+
+  /* ---- ตะกร้า ---- */
+  items: string[];
+  count: number;
+  has: (gameId: string) => boolean;
+  toggle: (gameId: string) => void;
+  add: (gameId: string) => void;
+  remove: (gameId: string) => void;
+  clear: () => void;
+
+  /* ---- รายการที่ต้องการ ---- */
+  wishlist: string[];
+  inWishlist: (gameId: string) => boolean;
+  toggleWishlist: (gameId: string) => void;
+
+  /* ---- คลังเกมและคำสั่งซื้อ ---- */
+  library: LibraryEntry[];
+  orders: OrderRow[];
+  owns: (gameId: string) => boolean;
+  checkout: () => PaidOrder | null;
+  markDownloaded: (gameId: string) => void;
+}
+
+const ShopContext = createContext<ShopValue | null>(null);
+
+const COLORS = ["#1A2440", "#2A1240", "#13261F", "#253014", "#0F2236", "#14302F", "#2E1A14", "#301528"];
+const ACCENTS = ["#FFA94D", "#FF5FA2", "#F5C04A", "#C8F04A", "#6EA8FF", "#5BD4C4", "#FF7A45", "#FF8FC7"];
+
+const slugify = (title: string) =>
+  title.trim().toLowerCase().replace(/[^\w฀-๿]+/g, "-").replace(/^-+|-+$/g, "") || "game";
+
+function makeLicenseKey() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const block = () =>
+    Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  return `HSG-${block()}-${block()}-${block()}`;
+}
+
+const today = () =>
+  new Date().toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
+
+export function ShopProvider({ children }: { children: ReactNode }) {
+  const [games, setGames] = useState<Game[]>(SEED_GAMES);
+  const [items, setItems] = useState<string[]>([]);
+  const [wishlist, setWishlist] = useState<string[]>([]);
+  const [library, setLibrary] = useState<LibraryEntry[]>([]);
+  const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [orderSeq, setOrderSeq] = useState(24118);
+
+  /* ---------- คลังข้อมูลเกม ---------- */
+
+  const approvedGames = useMemo(() => games.filter((g) => g.status === "APPROVED"), [games]);
+  const pendingGames = useMemo(() => games.filter((g) => g.status === "PENDING"), [games]);
+
+  const gamesByDev = useCallback((dev: string) => games.filter((g) => g.dev === dev), [games]);
+  const findGame = useCallback((slug: string) => games.find((g) => g.slug === slug), [games]);
+
+  /** ผู้พัฒนาส่งเกมใหม่ — เข้าคิวรอผู้ดูแลระบบตรวจสอบ */
+  const submitGame = useCallback((draft: NewGameDraft, dev: string): Game => {
+    const id = `u${Date.now()}`;
+    const i = Math.floor(Math.random() * COLORS.length);
+    const game: Game = {
+      id,
+      slug: `${slugify(draft.title)}-${id.slice(-4)}`,
+      title: draft.title.trim(),
+      genre: draft.genre,
+      dev,
+      price: draft.price,
+      rating: 0,
+      reviews: 0,
+      color: COLORS[i],
+      accent: ACCENTS[i],
+      coverUrl: draft.coverUrl ?? null,
+      status: "PENDING",
+      sizeMB: draft.sizeMB,
+      releaseDate: "—",
+      submittedAt: today(),
+      unitsSold: 0,
+      description: draft.description.trim(),
+    };
+    setGames((prev) => [game, ...prev]);
+    return game;
+  }, []);
+
+  const approveGame = useCallback((id: string) => {
+    setGames((prev) =>
+      prev.map((g) =>
+        g.id === id
+          ? { ...g, status: "APPROVED" as const, releaseDate: today(), rejectNote: undefined }
+          : g
+      )
+    );
+  }, []);
+
+  const rejectGame = useCallback((id: string, note = "ไม่ผ่านเกณฑ์การตรวจสอบ") => {
+    setGames((prev) =>
+      prev.map((g) => (g.id === id ? { ...g, status: "REJECTED" as const, rejectNote: note } : g))
+    );
+  }, []);
+
+  /* ---------- ตะกร้า ---------- */
+
+  const has = useCallback((id: string) => items.includes(id), [items]);
+  const add = useCallback((id: string) => {
+    setItems((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  }, []);
+  const remove = useCallback((id: string) => setItems((prev) => prev.filter((x) => x !== id)), []);
+  const toggle = useCallback((id: string) => {
+    setItems((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }, []);
+  const clear = useCallback(() => setItems([]), []);
+
+  /* ---------- รายการที่ต้องการ ---------- */
+
+  const inWishlist = useCallback((id: string) => wishlist.includes(id), [wishlist]);
+  const toggleWishlist = useCallback((id: string) => {
+    setWishlist((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }, []);
+
+  /* ---------- คลังเกม ---------- */
+
+  const owns = useCallback((id: string) => library.some((e) => e.gameId === id), [library]);
+
+  /** จำลองการชำระเงิน: ออก License Key ให้ทุกเกมในตะกร้า แล้วย้ายเข้าคลัง */
+  const checkout = useCallback((): PaidOrder | null => {
+    const buying = games.filter((g) => items.includes(g.id) && !library.some((e) => e.gameId === g.id));
+    if (buying.length === 0) return null;
+
+    const id = `#ORD-${orderSeq}`;
+    const date = today();
+    const total = buying.reduce((sum, g) => sum + g.price, 0);
+
+    setOrderSeq((n) => n + 1);
+    setLibrary((prev) => [
+      ...buying.map((g) => ({
+        gameId: g.id,
+        licenseKey: makeLicenseKey(),
+        acquiredAt: date,
+        orderId: id,
+        pricePaid: g.price,
+        downloadCount: 0,
+      })),
+      ...prev,
+    ]);
+    setOrders((prev) => [
+      {
+        id,
+        date,
+        items: buying.map((g) => g.title).join(", "),
+        total: `฿${total.toLocaleString()}`,
+        status: "FULFILLED" as const,
+      },
+      ...prev,
+    ]);
+    // ยอดขายของผู้พัฒนาเพิ่มขึ้นตามจริง
+    setGames((prev) =>
+      prev.map((g) => (buying.some((b) => b.id === g.id) ? { ...g, unitsSold: g.unitsSold + 1 } : g))
+    );
+    setItems([]);
+    setWishlist((prev) => prev.filter((x) => !buying.some((b) => b.id === x)));
+
+    return { id, titles: buying.map((g) => g.title), total };
+  }, [games, items, library, orderSeq]);
+
+  const markDownloaded = useCallback((gameId: string) => {
+    setLibrary((prev) =>
+      prev.map((e) => (e.gameId === gameId ? { ...e, downloadCount: e.downloadCount + 1 } : e))
+    );
+  }, []);
+
+  const value = useMemo<ShopValue>(
+    () => ({
+      games, approvedGames, pendingGames, gamesByDev, findGame,
+      submitGame, approveGame, rejectGame,
+      items, count: items.length, has, toggle, add, remove, clear,
+      wishlist, inWishlist, toggleWishlist,
+      library, orders, owns, checkout, markDownloaded,
+    }),
+    [
+      games, approvedGames, pendingGames, gamesByDev, findGame,
+      submitGame, approveGame, rejectGame,
+      items, has, toggle, add, remove, clear,
+      wishlist, inWishlist, toggleWishlist,
+      library, orders, owns, checkout, markDownloaded,
+    ]
+  );
+
+  return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>;
+}
+
+export function useShop(): ShopValue {
+  const ctx = useContext(ShopContext);
+  if (!ctx) throw new Error("useShop ต้องอยู่ภายใน <ShopProvider>");
+  return ctx;
+}

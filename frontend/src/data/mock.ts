@@ -1,7 +1,14 @@
 /**
- * ข้อมูลตัวอย่างสำหรับหน้า UI
- * ใช้ชั่วคราวระหว่างยังไม่ได้ต่อ API จริง — เมื่อต่อ backend แล้วให้เปลี่ยนไปเรียกผ่าน lib/api.ts
+ * ข้อมูลตั้งต้นสำหรับหน้า UI
+ *
+ * ไฟล์นี้เก็บเฉพาะ "ข้อมูลที่มีอยู่แล้วบนแพลตฟอร์ม" เช่น เกมที่ผู้พัฒนาคนอื่นเคยอัปโหลด
+ * และผู้ดูแลระบบอนุมัติไปแล้ว ส่วนข้อมูลที่เกิดจากการใช้งานของผู้ใช้เอง
+ * (ตะกร้า คลังเกม คำสั่งซื้อ เกมที่เพิ่งอัปโหลด) อยู่ใน store/shop.tsx ไม่ได้ hardcode ไว้ที่นี่
+ *
+ * เมื่อต่อ backend แล้วให้เปลี่ยนไปดึงจาก /api/games แทน
  */
+
+export type GameStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 export interface Game {
   id: string;
@@ -12,8 +19,18 @@ export interface Game {
   price: number;
   rating: number;
   reviews: number;
+  /** สีพื้นและสีเน้นของภาพปกจำลอง — เมื่อผู้พัฒนาอัปโหลดรูปจริงให้ใช้ coverUrl แทน */
   color: string;
   accent: string;
+  coverUrl?: string | null;
+  status: GameStatus;
+  sizeMB: number;
+  releaseDate: string;
+  description: string;
+  unitsSold: number;
+  /** เหตุผลที่ผู้ดูแลระบบปฏิเสธ (เฉพาะสถานะ REJECTED) */
+  rejectNote?: string;
+  submittedAt?: string;
 }
 
 export const GENRES = [
@@ -28,46 +45,66 @@ export const GENRES = [
   "แคชวล",
 ] as const;
 
-export const GAMES: Game[] = [
-  { id: "g1", slug: "echo-of-siam", title: "Echo of Siam", genre: "RPG", dev: "Lotus Forge", price: 459, rating: 4.9, reviews: 1284, color: "#1A2440", accent: "#FFA94D" },
-  { id: "g2", slug: "neon-drift", title: "Neon Drift", genre: "แข่งรถ", dev: "Volt Pixel", price: 349, rating: 4.6, reviews: 642, color: "#2A1240", accent: "#FF5FA2" },
-  { id: "g3", slug: "hollow-lantern", title: "Hollow Lantern", genre: "ผจญภัย", dev: "Moth & Ember", price: 259, rating: 4.8, reviews: 918, color: "#13261F", accent: "#F5C04A" },
-  { id: "g4", slug: "paddy-tactics", title: "Paddy Tactics", genre: "กลยุทธ์", dev: "Rice Bowl Games", price: 199, rating: 4.3, reviews: 221, color: "#253014", accent: "#C8F04A" },
-  { id: "g5", slug: "star-courier", title: "Star Courier", genre: "จำลอง", dev: "Orbit Nine", price: 289, rating: 4.5, reviews: 376, color: "#0F2236", accent: "#6EA8FF" },
-  { id: "g6", slug: "mekong-mysteries", title: "Mekong Mysteries", genre: "ปริศนา", dev: "River Lab", price: 149, rating: 4.7, reviews: 512, color: "#14302F", accent: "#5BD4C4" },
-  { id: "g7", slug: "iron-monsoon", title: "Iron Monsoon", genre: "แอ็กชัน", dev: "Storm Anvil", price: 399, rating: 4.2, reviews: 189, color: "#2E1A14", accent: "#FF7A45" },
-  { id: "g8", slug: "tiny-garden-co-op", title: "Tiny Garden Co-op", genre: "แคชวล", dev: "Sprout Studio", price: 119, rating: 4.4, reviews: 430, color: "#2B2414", accent: "#9BE15D" },
-  { id: "g9", slug: "lotus-knight", title: "Lotus Knight", genre: "แอ็กชัน", dev: "Lotus Forge", price: 299, rating: 4.1, reviews: 167, color: "#301528", accent: "#FF8FC7" },
-  { id: "g10", slug: "night-shift-bkk", title: "Night Shift BKK", genre: "จำลอง", dev: "Tuk Tuk Interactive", price: 229, rating: 4.6, reviews: 288, color: "#161A3A", accent: "#B18CFF" },
-  { id: "g11", slug: "pixel-krathong", title: "Pixel Krathong", genre: "แคชวล", dev: "Sprout Studio", price: 99, rating: 4.3, reviews: 354, color: "#122838", accent: "#FFD166" },
-  { id: "g12", slug: "deep-reef-signal", title: "Deep Reef Signal", genre: "ผจญภัย", dev: "Orbit Nine", price: 319, rating: 4.5, reviews: 203, color: "#0C2A33", accent: "#4FD1E8" },
+/** บัญชีผู้พัฒนาที่กำลังล็อกอินอยู่ในหน้าแดชบอร์ดผู้พัฒนา */
+export const CURRENT_DEV = "Lotus Forge";
+
+const APPROVED_SEED = [
+  { id: "g1", slug: "echo-of-siam", title: "Echo of Siam", genre: "RPG", dev: "Lotus Forge", price: 459, rating: 4.9, reviews: 1284, color: "#1A2440", accent: "#FFA94D", sizeMB: 148, releaseDate: "12 ส.ค. 2569", unitsSold: 162, description: "RPG ผจญภัยในอาณาจักรโบราณ สำรวจเมืองริมน้ำ ไขปริศนาวัดร้าง และสร้างทีมของคุณเอง" },
+  { id: "g2", slug: "neon-drift", title: "Neon Drift", genre: "แข่งรถ", dev: "Volt Pixel", price: 349, rating: 4.6, reviews: 642, color: "#2A1240", accent: "#FF5FA2", sizeMB: 186, releaseDate: "3 ก.ค. 2569", unitsSold: 318, description: "เกมแข่งรถกลางเมืองนีออน เน้นการดริฟต์และทำเวลาให้ดีที่สุด" },
+  { id: "g3", slug: "hollow-lantern", title: "Hollow Lantern", genre: "ผจญภัย", dev: "Moth & Ember", price: 259, rating: 4.8, reviews: 918, color: "#13261F", accent: "#F5C04A", sizeMB: 121, releaseDate: "20 พ.ค. 2569", unitsSold: 540, description: "เกมผจญภัยบรรยากาศมืดสลัว ไขปริศนาในป่าโบราณด้วยแสงจากโคมเพียงดวงเดียว" },
+  { id: "g4", slug: "paddy-tactics", title: "Paddy Tactics", genre: "กลยุทธ์", dev: "Rice Bowl Games", price: 199, rating: 4.3, reviews: 221, color: "#253014", accent: "#C8F04A", sizeMB: 92, releaseDate: "8 มิ.ย. 2569", unitsSold: 174, description: "เกมวางแผนผลัดตาบนทุ่งนา จัดทัพและใช้ภูมิประเทศให้เป็นประโยชน์" },
+  { id: "g5", slug: "star-courier", title: "Star Courier", genre: "จำลอง", dev: "Orbit Nine", price: 289, rating: 4.5, reviews: 376, color: "#0F2236", accent: "#6EA8FF", sizeMB: 97, releaseDate: "15 เม.ย. 2569", unitsSold: 263, description: "จำลองการเป็นคนส่งของระหว่างดาว บริหารเชื้อเพลิงและเวลาให้ทัน" },
+  { id: "g6", slug: "mekong-mysteries", title: "Mekong Mysteries", genre: "ปริศนา", dev: "River Lab", price: 149, rating: 4.7, reviews: 512, color: "#14302F", accent: "#5BD4C4", sizeMB: 64, releaseDate: "2 ก.พ. 2569", unitsSold: 612, description: "เกมปริศนาเล่าเรื่องริมแม่น้ำโขง ไขคดีจากหลักฐานที่ชาวบ้านทิ้งไว้" },
+  { id: "g7", slug: "iron-monsoon", title: "Iron Monsoon", genre: "แอ็กชัน", dev: "Storm Anvil", price: 399, rating: 4.2, reviews: 189, color: "#2E1A14", accent: "#FF7A45", sizeMB: 203, releaseDate: "28 ก.ย. 2569", unitsSold: 141, description: "เกมแอ็กชันต่อสู้กลางพายุฝน ใช้อาวุธหนักฝ่าแนวข้าศึก" },
+  { id: "g8", slug: "tiny-garden-co-op", title: "Tiny Garden Co-op", genre: "แคชวล", dev: "Sprout Studio", price: 119, rating: 4.4, reviews: 430, color: "#2B2414", accent: "#9BE15D", sizeMB: 58, releaseDate: "11 มี.ค. 2569", unitsSold: 489, description: "เกมปลูกสวนเล่นด้วยกันได้สองคน เน้นผ่อนคลายไม่มีเวลาจำกัด" },
+  { id: "g9", slug: "lotus-knight", title: "Lotus Knight", genre: "แอ็กชัน", dev: "Lotus Forge", price: 299, rating: 4.1, reviews: 167, color: "#301528", accent: "#FF8FC7", sizeMB: 134, releaseDate: "30 ต.ค. 2569", unitsSold: 52, description: "เกมแอ็กชันผจญภัย รับบทอัศวินดอกบัวผู้ปกป้องวิหารกลางบึง" },
+  { id: "g10", slug: "night-shift-bkk", title: "Night Shift BKK", genre: "จำลอง", dev: "Tuk Tuk Interactive", price: 229, rating: 4.6, reviews: 288, color: "#161A3A", accent: "#B18CFF", sizeMB: 112, releaseDate: "19 ม.ค. 2569", unitsSold: 357, description: "จำลองชีวิตคนขับรถกลางคืนในกรุงเทพ พบผู้โดยสารและเรื่องเล่าต่าง ๆ" },
+  { id: "g11", slug: "pixel-krathong", title: "Pixel Krathong", genre: "แคชวล", dev: "Sprout Studio", price: 99, rating: 4.3, reviews: 354, color: "#122838", accent: "#FFD166", sizeMB: 42, releaseDate: "5 พ.ย. 2569", unitsSold: 402, description: "เกมแคชวลลอยกระทงสไตล์พิกเซล ประดิษฐ์กระทงและลอยไปตามสายน้ำ" },
+  { id: "g12", slug: "deep-reef-signal", title: "Deep Reef Signal", genre: "ผจญภัย", dev: "Orbit Nine", price: 319, rating: 4.5, reviews: 203, color: "#0C2A33", accent: "#4FD1E8", sizeMB: 176, releaseDate: "24 ส.ค. 2569", unitsSold: 198, description: "สำรวจแนวปะการังลึก ตามหาสัญญาณปริศนาที่ส่งมาจากใต้ทะเล" },
 ];
 
-export const FEATURED = GAMES[0];
-
-/* ---------- คลังเกม ---------- */
-
-export interface OwnedGame {
-  slug: string;
-  title: string;
-  dev: string;
-  color: string;
-  accent: string;
-  size: string;
-  licenseKey: string;
-  date: string;
-  order: string;
-  price: string;
-  status: string;
-}
-
-export const OWNED: OwnedGame[] = [
-  { slug: "echo-of-siam", title: "Echo of Siam", dev: "Lotus Forge", color: "#1A2440", accent: "#FFA94D", size: "148 MB", licenseKey: "HSG-7K4Q-M2RD-9WZT", date: "10 พ.ย. 2569", order: "#ORD-24117", price: "฿459", status: "ใหม่ · ยังไม่ดาวน์โหลด" },
-  { slug: "neon-drift", title: "Neon Drift", dev: "Volt Pixel", color: "#2A1240", accent: "#FF5FA2", size: "186 MB", licenseKey: "HSG-3HCV-8PLE-Q61N", date: "2 พ.ย. 2569", order: "#ORD-23980", price: "฿349", status: "ดาวน์โหลดแล้ว" },
-  { slug: "mekong-mysteries", title: "Mekong Mysteries", dev: "River Lab", color: "#14302F", accent: "#5BD4C4", size: "64 MB", licenseKey: "HSG-B9TA-2XKM-77FD", date: "2 พ.ย. 2569", order: "#ORD-23980", price: "฿149", status: "ดาวน์โหลดแล้ว" },
-  { slug: "hollow-lantern", title: "Hollow Lantern", dev: "Moth & Ember", color: "#13261F", accent: "#F5C04A", size: "121 MB", licenseKey: "HSG-L0WE-5NRQ-H8JS", date: "3 ต.ค. 2569", order: "#ORD-23102", price: "฿259", status: "ดาวน์โหลดแล้ว" },
-  { slug: "star-courier", title: "Star Courier", dev: "Orbit Nine", color: "#0F2236", accent: "#6EA8FF", size: "97 MB", licenseKey: "HSG-S7AR-C0UR-1E2Y", date: "3 ต.ค. 2569", order: "#ORD-23102", price: "฿289", status: "ดาวน์โหลดแล้ว" },
+const PENDING_SEED = [
+  { id: "q1", slug: "temple-runner-dx", title: "Temple Runner DX", genre: "แอ็กชัน", dev: "Lotus Forge", price: 179, color: "#2E1A14", accent: "#FF7A45", sizeMB: 172, submittedAt: "9 พ.ย. 2569", description: "เกมวิ่งหลบสิ่งกีดขวางในโบราณสถาน เก็บเหรียญและทำคะแนนให้ไกลที่สุด" },
+  { id: "q2", slug: "rain-garden", title: "Rain Garden", genre: "แคชวล", dev: "Sprout Studio", price: 89, color: "#13261F", accent: "#9BE15D", sizeMB: 88, submittedAt: "9 พ.ย. 2569", description: "เกมจัดสวนในวันฝนตก ฟังเสียงฝนและปลูกต้นไม้ไปเรื่อย ๆ" },
+  { id: "q3", slug: "cyber-songkran", title: "Cyber Songkran", genre: "แข่งรถ", dev: "Volt Pixel", price: 259, color: "#2A1240", accent: "#FF5FA2", sizeMB: 194, submittedAt: "8 พ.ย. 2569", description: "แข่งรถสาดน้ำกลางเทศกาลสงกรานต์ในเมืองอนาคต" },
+  { id: "q4", slug: "quiet-lighthouse", title: "Quiet Lighthouse", genre: "ปริศนา", dev: "River Lab", price: 129, color: "#0F2236", accent: "#6EA8FF", sizeMB: 45, submittedAt: "7 พ.ย. 2569", description: "เกมปริศนาในประภาคารร้าง ไขรหัสจากบันทึกของผู้ดูแลคนก่อน" },
 ];
+
+/** เกมตั้งต้นบนแพลตฟอร์ม — อนุมัติแล้ว 12 เกม รอตรวจสอบ 4 เกม ถูกปฏิเสธ 1 เกม */
+export const SEED_GAMES: Game[] = [
+  ...APPROVED_SEED.map((g) => ({ ...g, status: "APPROVED" as const, coverUrl: null })),
+  ...PENDING_SEED.map((g) => ({
+    ...g,
+    status: "PENDING" as const,
+    coverUrl: null,
+    rating: 0,
+    reviews: 0,
+    unitsSold: 0,
+    releaseDate: "—",
+  })),
+  {
+    id: "r1",
+    slug: "bell-tower-demo",
+    title: "Bell Tower Demo",
+    genre: "ผจญภัย",
+    dev: "Lotus Forge",
+    price: 0,
+    rating: 0,
+    reviews: 0,
+    color: "#1A2440",
+    accent: "#FFA94D",
+    coverUrl: null,
+    status: "REJECTED",
+    sizeMB: 248,
+    releaseDate: "—",
+    submittedAt: "1 พ.ย. 2569",
+    unitsSold: 0,
+    description: "เดโมสั้น ๆ ของฉากหอระฆัง",
+    rejectNote: "ไฟล์เกิน 200 MB",
+  },
+];
+
+/* ---------- คำสั่งซื้อ ---------- */
 
 export interface OrderRow {
   id: string;
@@ -76,13 +113,6 @@ export interface OrderRow {
   total: string;
   status: "FULFILLED" | "REFUNDED" | "PENDING";
 }
-
-export const ORDERS: OrderRow[] = [
-  { id: "#ORD-24117", date: "10 พ.ย. 2569", items: "Echo of Siam", total: "฿459", status: "FULFILLED" },
-  { id: "#ORD-23980", date: "2 พ.ย. 2569", items: "Neon Drift, Mekong Mysteries", total: "฿498", status: "FULFILLED" },
-  { id: "#ORD-23511", date: "18 ต.ค. 2569", items: "Iron Monsoon", total: "฿399", status: "REFUNDED" },
-  { id: "#ORD-23102", date: "3 ต.ค. 2569", items: "Hollow Lantern, Star Courier", total: "฿548", status: "FULFILLED" },
-];
 
 export const ORDER_STATUS: Record<OrderRow["status"], { label: string; tone: string }> = {
   FULFILLED: { label: "FULFILLED · ส่งมอบสิทธิ์แล้ว", tone: "pill--ok" },
@@ -113,7 +143,6 @@ export const SYSTEM_REQS = [
   { label: "หน่วยประมวลผล", min: "Intel Core i5-8400 / Ryzen 5 2600", rec: "Intel Core i7-10700 / Ryzen 7 5700X" },
   { label: "หน่วยความจำ", min: "8 GB RAM", rec: "16 GB RAM" },
   { label: "การ์ดจอ", min: "GTX 1060 6 GB", rec: "RTX 3060" },
-  { label: "พื้นที่จัดเก็บ", min: "ไฟล์ติดตั้ง 148 MB", rec: "ไฟล์ติดตั้ง 148 MB (SSD)" },
 ];
 
 export interface GameReview {
@@ -126,24 +155,59 @@ export interface GameReview {
   devReply?: { studio: string; text: string };
 }
 
-export const GAME_REVIEWS: GameReview[] = [
-  {
-    author: "กัญญาภัทร ส.",
-    initial: "ก",
-    avatarColor: "#4A3B6B",
-    stars: 5,
-    text: "เนื้อเรื่องดีมาก ภาษาไทยลื่นไหล ระบบต่อสู้จับจังหวะสนุกกว่าที่คิด เล่นจบไปแล้ว 2 รอบ",
-    meta: "เล่นไปแล้ว 32 ชั่วโมง · 3 วันที่แล้ว",
-    devReply: { studio: "Lotus Forge", text: "ขอบคุณมากครับ! อัปเดตถัดไปจะเพิ่มภารกิจเสริมในเมืองริมน้ำ" },
-  },
-  {
-    author: "tonkla_99",
-    initial: "T",
-    avatarColor: "#2E5B4F",
-    stars: 4,
-    text: "ภาพสวย เพลงดี แต่ช่วงกลางเกมต้องเก็บเลเวลนานไปหน่อย โดยรวมคุ้มราคา",
-    meta: "เล่นไปแล้ว 14 ชั่วโมง · 1 สัปดาห์ที่แล้ว",
-  },
+/** รีวิวตัวอย่างของเกมที่ขายอยู่แล้ว — เกมที่เพิ่งอนุมัติจะยังไม่มีรีวิว */
+export const GAME_REVIEWS: Record<string, GameReview[]> = {
+  "echo-of-siam": [
+    {
+      author: "กัญญาภัทร ส.",
+      initial: "ก",
+      avatarColor: "#4A3B6B",
+      stars: 5,
+      text: "เนื้อเรื่องดีมาก ภาษาไทยลื่นไหล ระบบต่อสู้จับจังหวะสนุกกว่าที่คิด เล่นจบไปแล้ว 2 รอบ",
+      meta: "เล่นไปแล้ว 32 ชั่วโมง · 3 วันที่แล้ว",
+      devReply: { studio: "Lotus Forge", text: "ขอบคุณมากครับ! อัปเดตถัดไปจะเพิ่มภารกิจเสริมในเมืองริมน้ำ" },
+    },
+    {
+      author: "tonkla_99",
+      initial: "T",
+      avatarColor: "#2E5B4F",
+      stars: 4,
+      text: "ภาพสวย เพลงดี แต่ช่วงกลางเกมต้องเก็บเลเวลนานไปหน่อย โดยรวมคุ้มราคา",
+      meta: "เล่นไปแล้ว 14 ชั่วโมง · 1 สัปดาห์ที่แล้ว",
+    },
+  ],
+  "neon-drift": [
+    {
+      author: "beam.k",
+      initial: "B",
+      avatarColor: "#3B4A6B",
+      stars: 4,
+      text: "ขับสนุก เพลงมันส์ แต่อยากให้มีสนามเพิ่มอีก",
+      meta: "เล่นไปแล้ว 21 ชั่วโมง · 5 วันที่แล้ว",
+    },
+  ],
+};
+
+/* ---------- รีวิวที่ผู้พัฒนายังไม่ได้ตอบ ---------- */
+
+export const PENDING_DEV_REVIEWS = [
+  { who: "tonkla_99 · Echo of Siam", stars: 4, text: "ช่วงกลางเกมต้องเก็บเลเวลนานไปหน่อย" },
+  { who: "mint.pp · Lotus Knight", stars: 3, text: "บอสด่าน 3 ยากเกินไป อยากให้มีระดับความยากให้เลือก" },
+  { who: "ploy_s · Echo of Siam", stars: 5, text: "ชอบเพลงประกอบมาก จะมี soundtrack ขายไหม" },
+];
+
+/* ---------- ผู้ดูแลระบบ ---------- */
+
+export const DEV_REQUESTS = [
+  { name: "Kinnaree Works", initial: "K", sent: "ส่งคำขอ 9 พ.ย. 2569" },
+  { name: "Mango Byte", initial: "M", sent: "ส่งคำขอ 8 พ.ย. 2569" },
+];
+
+export const PLATFORM_ORDERS = [
+  { id: "#ORD-24116", buyer: "mint.pp", items: "Lotus Knight", total: "฿299", status: "PAID", ref: "pay_mock_77c1…" },
+  { id: "#ORD-24115", buyer: "ploy_s", items: "Pixel Krathong, Star Courier", total: "฿388", status: "PENDING", ref: "รอ webhook" },
+  { id: "#ORD-24109", buyer: "tonkla_99", items: "Iron Monsoon", total: "฿399", status: "REFUNDED", ref: "pay_mock_19de…" },
+  { id: "#ORD-24102", buyer: "beam.k", items: "Night Shift BKK", total: "฿229", status: "CANCELLED", ref: "—" },
 ];
 
 /* ---------- โปรไฟล์ ---------- */
@@ -155,34 +219,22 @@ export const PROFILE = {
   bio: "สายเนื้อเรื่องและเกมอินดี้ไทย ชอบไล่เก็บตอนจบลับ ว่าง ๆ ชวนเล่น Neon Drift ได้",
   tags: ["RPG", "ผจญภัย", "แข่งรถ"],
   memberSince: "สมาชิกตั้งแต่ ส.ค. 2569",
-  stats: [
-    { label: "เกมในคลัง", value: "5" },
-    { label: "รีวิว", value: "12" },
-    { label: "โพสต์คอมมูนิตี้", value: "34" },
-    { label: "ผู้ติดตาม", value: "128" },
-    { label: "กำลังติดตาม", value: "57" },
-  ],
 };
-
-export const RECENT_GAMES = [
-  { title: "Echo of Siam", color: "#1A2440", accent: "#FFA94D", hours: 32, progress: "78%" },
-  { title: "Neon Drift", color: "#2A1240", accent: "#FF5FA2", hours: 21, progress: "54%" },
-  { title: "Mekong Mysteries", color: "#14302F", accent: "#5BD4C4", hours: 9, progress: "40%" },
-  { title: "Hollow Lantern", color: "#13261F", accent: "#F5C04A", hours: 14, progress: "100%" },
-  { title: "Star Courier", color: "#0F2236", accent: "#6EA8FF", hours: 6, progress: "22%" },
-];
 
 export const ACTIVITY = [
   { text: "โพสต์ “วิธีปลดล็อกตอนจบที่ 3” ในคอมมูนิตี้", time: "2 ชั่วโมงที่แล้ว", color: "#C8F04A" },
-  { text: "ซื้อเกม Echo of Siam", time: "วันนี้", color: "#6EA8FF" },
-  { text: "รีวิว Hollow Lantern ★★★★★", time: "3 วันที่แล้ว", color: "#F5C04A" },
   { text: "เริ่มติดตาม tonkla_99", time: "1 สัปดาห์ที่แล้ว", color: "#FF8FB0" },
 ];
 
 export const MY_REVIEWS = [
   { game: "Hollow Lantern", stars: "★★★★★", text: "บรรยากาศดีมาก ปริศนาไม่ยากเกินไป เหมาะกับคนชอบเกมเล่าเรื่อง", time: "3 วันที่แล้ว", helpful: 18 },
   { game: "Neon Drift", stars: "★★★★☆", text: "ขับสนุก เพลงมันส์ แต่อยากให้มีสนามเพิ่มอีก", time: "1 สัปดาห์ที่แล้ว", helpful: 7 },
-  { game: "Star Courier", stars: "★★★☆☆", text: "ไอเดียดีแต่ช่วงต้นเกมช้าไปนิด", time: "2 สัปดาห์ที่แล้ว", helpful: 3 },
+];
+
+export const MY_POSTS = [
+  { cat: "ทริค & แนะนำ", game: "Echo of Siam", time: "2 ชม.ที่แล้ว", title: "วิธีปลดล็อกตอนจบที่ 3 แบบไม่ต้องเล่นใหม่", likes: 128, comments: 2 },
+  { cat: "หาเพื่อนเล่น", game: "Neon Drift", time: "4 วันที่แล้ว", title: "ใครว่างลง Time Trial สุดสัปดาห์นี้บ้าง", likes: 15, comments: 6 },
+  { cat: "พูดคุยทั่วไป", game: "ทั่วไป", time: "2 สัปดาห์ที่แล้ว", title: "แชร์เกมอินดี้ไทยที่ชอบที่สุดของแต่ละคน", likes: 52, comments: 21 },
 ];
 
 /* ---------- คอมมูนิตี้ ---------- */
@@ -302,10 +354,4 @@ export const COMMUNITY_RULES = [
   "ติดป้าย “มีสปอยล์” เมื่อเล่าเนื้อเรื่อง",
   "ห้ามซื้อขายบัญชีหรือ License Key",
   "ห้ามโพสต์ลิงก์เกมเถื่อน",
-];
-
-export const MY_POSTS = [
-  { cat: "ทริค & แนะนำ", game: "Echo of Siam", time: "2 ชม.ที่แล้ว", title: "วิธีปลดล็อกตอนจบที่ 3 แบบไม่ต้องเล่นใหม่", likes: 128, comments: 2 },
-  { cat: "หาเพื่อนเล่น", game: "Neon Drift", time: "4 วันที่แล้ว", title: "ใครว่างลง Time Trial สุดสัปดาห์นี้บ้าง", likes: 15, comments: 6 },
-  { cat: "พูดคุยทั่วไป", game: "ทั่วไป", time: "2 สัปดาห์ที่แล้ว", title: "แชร์เกมอินดี้ไทยที่ชอบที่สุดของแต่ละคน", likes: 52, comments: 21 },
 ];

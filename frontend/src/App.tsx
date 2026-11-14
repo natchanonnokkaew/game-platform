@@ -1,6 +1,6 @@
 import { Link, Route, Routes } from "react-router-dom";
 import SiteLayout from "./components/SiteLayout";
-import { CartProvider } from "./store/cart";
+import { ShopProvider } from "./store/shop";
 
 import StorePage from "./pages/StorePage";
 import GameDetailPage from "./pages/GameDetailPage";
@@ -32,7 +32,7 @@ function NotFound() {
 
 export default function App() {
   return (
-    <CartProvider>
+    <ShopProvider>
       <Routes>
         {/* หน้าที่มีแถบนำทางหลัก */}
         <Route element={<SiteLayout />}>
@@ -56,6 +56,6 @@ export default function App() {
         <Route path="/developer" element={<DevDashboardPage />} />
         <Route path="/admin" element={<AdminDashboardPage />} />
       </Routes>
-    </CartProvider>
+    </ShopProvider>
   );
 }

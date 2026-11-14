@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Link, Outlet, useNavigate, useSearchParams } from "react-router-dom";
 import { CartIcon, HeartIcon, LogoMark, SearchIcon } from "./icons";
-import { useCart } from "../store/cart";
+import { useShop } from "../store/shop";
 
 const MENU = [
   { to: "/", label: "ร้านค้า", end: true },
@@ -116,7 +116,7 @@ function GlobalSearch() {
 }
 
 export function Navbar() {
-  const { count } = useCart();
+  const { count } = useShop();
 
   return (
     <header className="navbar">

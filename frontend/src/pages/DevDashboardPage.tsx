@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import DashboardLayout, { Kpi, type SidebarItem } from "../components/DashboardLayout";
+import { CURRENT_DEV, GENRES, PENDING_DEV_REVIEWS } from "../data/mock";
 import {
   ChartIcon,
   GamepadIcon,
@@ -8,6 +10,7 @@ import {
   UploadIcon,
   UsersIcon,
 } from "../components/icons";
+import { useShop } from "../store/shop";
 
 const SIDEBAR: SidebarItem[] = [
   { label: "ภาพรวม", icon: <ChartIcon />, target: "overview" },
@@ -18,24 +21,11 @@ const SIDEBAR: SidebarItem[] = [
   { label: "บัญชีผู้พัฒนา", icon: <UsersIcon />, target: "account" },
 ];
 
-const MY_GAMES = [
-  { title: "Echo of Siam", price: "฿459", sold: "162", revenue: "฿74,358", status: "approved" as const },
-  { title: "Lotus Knight", price: "฿299", sold: "52", revenue: "฿15,548", status: "approved" as const },
-  { title: "Temple Runner DX", price: "฿179", sold: "—", revenue: "—", status: "pending" as const },
-  { title: "Bell Tower Demo", price: "฿0", sold: "—", revenue: "—", status: "rejected" as const, note: "เหตุผล: ไฟล์เกิน 200 MB" },
-];
-
 const STATUS_LABEL = {
-  approved: { text: "✓ อนุมัติแล้ว", tone: "pill--ok" },
-  pending: { text: "◷ รอตรวจสอบ", tone: "pill--warn" },
-  rejected: { text: "✕ ถูกปฏิเสธ", tone: "pill--danger" },
+  APPROVED: { text: "✓ อนุมัติแล้ว", tone: "pill--ok" },
+  PENDING: { text: "◷ รอตรวจสอบ", tone: "pill--warn" },
+  REJECTED: { text: "✕ ถูกปฏิเสธ", tone: "pill--danger" },
 };
-
-const PENDING_REVIEWS = [
-  { who: "tonkla_99 · Echo of Siam", stars: 4, text: "ช่วงกลางเกมต้องเก็บเลเวลนานไปหน่อย" },
-  { who: "mint.pp · Lotus Knight", stars: 3, text: "บอสด่าน 3 ยากเกินไป อยากให้มีระดับความยากให้เลือก" },
-  { who: "ploy_s · Echo of Siam", stars: 5, text: "ชอบเพลงประกอบมาก จะมี soundtrack ขายไหม" },
-];
 
 const RANGES = [
   { n: 7, label: "7 วัน" },
@@ -43,8 +33,32 @@ const RANGES = [
   { n: 30, label: "30 วัน" },
 ];
 
+const MAX_FILE_MB = 200;
+
 export default function DevDashboardPage() {
+  const shop = useShop();
   const [range, setRange] = useState(14);
+
+  /* ฟอร์มอัปโหลดเกม */
+  const [title, setTitle] = useState("");
+  const [price, setPrice] = useState("");
+  const [genre, setGenre] = useState("RPG");
+  const [description, setDescription] = useState("");
+  const [sizeMB, setSizeMB] = useState("");
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState<string | null>(null);
+
+  const myGames = shop.gamesByDev(CURRENT_DEV);
+  const approved = myGames.filter((g) => g.status === "APPROVED");
+  const pending = myGames.filter((g) => g.status === "PENDING");
+  const rejected = myGames.filter((g) => g.status === "REJECTED");
+
+  const unitsSold = approved.reduce((sum, g) => sum + g.unitsSold, 0);
+  const revenue = approved.reduce((sum, g) => sum + g.unitsSold * g.price, 0);
+  const avgRating = approved.length
+    ? (approved.reduce((sum, g) => sum + g.rating, 0) / approved.length).toFixed(1)
+    : "—";
 
   const { bars, total, top } = useMemo(() => {
     const all: number[] = [];
@@ -65,6 +79,33 @@ export default function DevDashboardPage() {
     };
   }, [range]);
 
+  function handleSubmitGame(e: FormEvent) {
+    e.preventDefault();
+    setSubmitted(null);
+
+    const priceNum = Number(price);
+    const sizeNum = Number(sizeMB);
+
+    if (!title.trim()) return setFormError("กรุณากรอกชื่อเกม");
+    if (!description.trim()) return setFormError("กรุณากรอกคำอธิบายเกม");
+    if (!Number.isFinite(priceNum) || priceNum < 0) return setFormError("ราคาต้องเป็นตัวเลขไม่ติดลบ");
+    if (!Number.isFinite(sizeNum) || sizeNum <= 0) return setFormError("กรุณาระบุขนาดไฟล์เกม");
+    if (sizeNum > MAX_FILE_MB) return setFormError(`ไฟล์เกมต้องไม่เกิน ${MAX_FILE_MB} MB`);
+
+    // TODO: ต่อกับ POST /api/games (multipart พร้อมไฟล์เกมจริง)
+    const game = shop.submitGame(
+      { title, price: priceNum, genre, description, sizeMB: sizeNum, coverUrl },
+      CURRENT_DEV
+    );
+    setFormError(null);
+    setSubmitted(game.title);
+    setTitle("");
+    setPrice("");
+    setDescription("");
+    setSizeMB("");
+    setCoverUrl(null);
+  }
+
   return (
     <DashboardLayout
       console="Developer Console"
@@ -75,7 +116,7 @@ export default function DevDashboardPage() {
           <span className="pill pill--ok" style={{ alignSelf: "flex-start" }}>
             อนุมัติแล้ว
           </span>
-          <span style={{ fontSize: 14 }}>Lotus Forge</span>
+          <span style={{ fontSize: 14 }}>{CURRENT_DEV}</span>
           <span className="muted" style={{ fontSize: 12, wordBreak: "break-all" }}>
             dev@lotusforge.example
           </span>
@@ -84,22 +125,22 @@ export default function DevDashboardPage() {
     >
       <div className="row row--between" id="overview">
         <div>
-          <h1 className="page-title">สวัสดี, Lotus Forge</h1>
+          <h1 className="page-title">สวัสดี, {CURRENT_DEV}</h1>
           <p className="muted" style={{ margin: 0 }}>
-            อัปเดตแบบเรียลไทม์ · ล่าสุด 13:56 น.
+            เกมที่เผยแพร่แล้ว {approved.length} เกม · รอตรวจสอบ {pending.length} เกม
           </p>
         </div>
-        <button type="button" className="btn btn--primary">
+        <a href="#upload" className="btn btn--primary">
           <UploadIcon size={18} />
           อัปโหลดเกมใหม่
-        </button>
+        </a>
       </div>
 
       <div className="kpi-grid">
-        <Kpi label="รายได้เดือนนี้" value="฿84,230" delta="▲ 12% จากเดือนก่อน" />
-        <Kpi label="จำนวนที่ขายได้" value="214 ชุด" delta="▲ 31 ชุด ในสัปดาห์นี้" />
-        <Kpi label="เกมที่เผยแพร่" value="2 เกม" delta="รอตรวจสอบ 1 · ถูกปฏิเสธ 1" deltaTone="var(--text-muted)" />
-        <Kpi label="คะแนนรีวิวเฉลี่ย" value="★ 4.6" delta="รอการตอบกลับ 3 รีวิว" deltaTone="var(--text-muted)" />
+        <Kpi label="รายได้สะสม" value={`฿${revenue.toLocaleString()}`} delta="คิดจากยอดขายจริงของเกมที่อนุมัติแล้ว" deltaTone="var(--text-muted)" />
+        <Kpi label="จำนวนที่ขายได้" value={`${unitsSold.toLocaleString()} ชุด`} delta={`จาก ${approved.length} เกม`} deltaTone="var(--text-muted)" />
+        <Kpi label="เกมที่เผยแพร่" value={`${approved.length} เกม`} delta={`รอตรวจสอบ ${pending.length} · ถูกปฏิเสธ ${rejected.length}`} deltaTone="var(--text-muted)" />
+        <Kpi label="คะแนนรีวิวเฉลี่ย" value={`★ ${avgRating}`} delta={`รอการตอบกลับ ${PENDING_DEV_REVIEWS.length} รีวิว`} deltaTone="var(--text-muted)" />
       </div>
 
       {/* ---------- กราฟยอดขาย ---------- */}
@@ -129,13 +170,7 @@ export default function DevDashboardPage() {
         <div style={{ display: "flex", gap: 12 }}>
           <div
             className="muted"
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              fontSize: 12,
-              height: 200,
-            }}
+            style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", fontSize: 12, height: 200 }}
           >
             <span>{top}</span>
             <span>{top / 2}</span>
@@ -159,13 +194,7 @@ export default function DevDashboardPage() {
               <span
                 key={i}
                 title={`${b.value} ชุด`}
-                style={{
-                  flex: 1,
-                  height: b.height,
-                  minHeight: 2,
-                  background: b.color,
-                  borderRadius: "3px 3px 0 0",
-                }}
+                style={{ flex: 1, height: b.height, minHeight: 2, background: b.color, borderRadius: "3px 3px 0 0" }}
               />
             ))}
           </div>
@@ -179,45 +208,59 @@ export default function DevDashboardPage() {
       {/* ---------- เกมของฉัน ---------- */}
       <section id="my-games" className="stack" style={{ gap: 12 }}>
         <h2 className="section-title">เกมของฉัน</h2>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">เกม</th>
-                <th scope="col" className="num">ราคา</th>
-                <th scope="col" className="num">ขายได้</th>
-                <th scope="col" className="num">รายได้</th>
-                <th scope="col">สถานะการอนุมัติ</th>
-                <th scope="col">จัดการ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {MY_GAMES.map((g) => (
-                <tr key={g.title}>
-                  <td>
-                    <b>{g.title}</b>
-                    {g.note && (
-                      <div className="muted" style={{ fontSize: 13 }}>
-                        {g.note}
-                      </div>
-                    )}
-                  </td>
-                  <td className="num">{g.price}</td>
-                  <td className="num">{g.sold}</td>
-                  <td className="num">{g.revenue}</td>
-                  <td>
-                    <span className={`pill ${STATUS_LABEL[g.status].tone}`}>{STATUS_LABEL[g.status].text}</span>
-                  </td>
-                  <td>
-                    <button type="button" className="btn btn--secondary btn--sm">
-                      {g.status === "rejected" ? "ส่งใหม่" : "แก้ไข"}
-                    </button>
-                  </td>
+        {myGames.length === 0 ? (
+          <p className="muted" style={{ margin: 0 }}>
+            ยังไม่มีเกม — อัปโหลดเกมแรกของคุณได้ที่ฟอร์มด้านล่าง
+          </p>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">เกม</th>
+                  <th scope="col" className="num">ราคา</th>
+                  <th scope="col" className="num">ขายได้</th>
+                  <th scope="col" className="num">รายได้</th>
+                  <th scope="col">สถานะการอนุมัติ</th>
+                  <th scope="col">จัดการ</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {myGames.map((g) => (
+                  <tr key={g.id}>
+                    <td>
+                      {g.status === "APPROVED" ? (
+                        <Link to={`/games/${g.slug}`} style={{ color: "var(--text)", fontWeight: 700, textDecoration: "none" }}>
+                          {g.title}
+                        </Link>
+                      ) : (
+                        <b>{g.title}</b>
+                      )}
+                      {g.rejectNote && (
+                        <div className="muted" style={{ fontSize: 13 }}>
+                          เหตุผล: {g.rejectNote}
+                        </div>
+                      )}
+                    </td>
+                    <td className="num">฿{g.price}</td>
+                    <td className="num">{g.status === "APPROVED" ? g.unitsSold : "—"}</td>
+                    <td className="num">
+                      {g.status === "APPROVED" ? `฿${(g.unitsSold * g.price).toLocaleString()}` : "—"}
+                    </td>
+                    <td>
+                      <span className={`pill ${STATUS_LABEL[g.status].tone}`}>{STATUS_LABEL[g.status].text}</span>
+                    </td>
+                    <td>
+                      <button type="button" className="btn btn--secondary btn--sm">
+                        {g.status === "REJECTED" ? "ส่งใหม่" : "แก้ไข"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "flex-start" }}>
@@ -229,64 +272,149 @@ export default function DevDashboardPage() {
         >
           <h2 style={{ fontSize: 18, fontWeight: 600 }}>อัปโหลดเกมใหม่</h2>
 
-          <div className="row" style={{ gap: 12 }}>
-            <div className="field" style={{ flex: "2 1 200px" }}>
-              <label htmlFor="up-title">ชื่อเกม</label>
-              <input id="up-title" />
+          {submitted && (
+            <div role="status" className="alert alert--ok">
+              <span>
+                ส่ง <b>{submitted}</b> ให้ผู้ดูแลระบบตรวจสอบแล้ว — ดูสถานะได้ที่ตาราง “เกมของฉัน”
+              </span>
             </div>
-            <div className="field" style={{ flex: "1 1 120px" }}>
-              <label htmlFor="up-price">ราคา (บาท)</label>
-              <input id="up-price" type="number" min={0} />
+          )}
+
+          <form onSubmit={handleSubmitGame}>
+            <div className="row" style={{ gap: 12 }}>
+              <div className="field" style={{ flex: "2 1 200px" }}>
+                <label htmlFor="up-title">ชื่อเกม</label>
+                <input id="up-title" value={title} onChange={(e) => { setTitle(e.target.value); setFormError(null); }} />
+              </div>
+              <div className="field" style={{ flex: "1 1 120px" }}>
+                <label htmlFor="up-price">ราคา (บาท)</label>
+                <input id="up-price" type="number" min={0} value={price} onChange={(e) => { setPrice(e.target.value); setFormError(null); }} />
+              </div>
+              <div className="field" style={{ flex: "1 1 140px" }}>
+                <label htmlFor="up-genre">ประเภท</label>
+                <select id="up-genre" value={genre} onChange={(e) => setGenre(e.target.value)}>
+                  {GENRES.filter((g) => g !== "ทั้งหมด").map((g) => (
+                    <option key={g}>{g}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div className="field" style={{ flex: "1 1 140px" }}>
-              <label htmlFor="up-genre">ประเภท</label>
-              <select id="up-genre">
-                <option>RPG</option>
-                <option>แอ็กชัน</option>
-                <option>ผจญภัย</option>
-                <option>ปริศนา</option>
-              </select>
+
+            <div className="field">
+              <label htmlFor="up-desc">คำอธิบาย</label>
+              <textarea
+                id="up-desc"
+                rows={3}
+                value={description}
+                onChange={(e) => { setDescription(e.target.value); setFormError(null); }}
+              />
             </div>
-          </div>
 
-          <div className="field">
-            <label htmlFor="up-desc">คำอธิบาย</label>
-            <textarea id="up-desc" rows={3} />
-          </div>
+            <label
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                padding: 28,
+                borderRadius: 12,
+                border: "1px dashed var(--border-strong)",
+                background: "var(--surface-input)",
+                cursor: "pointer",
+                textAlign: "center",
+              }}
+            >
+              <UploadIcon size={28} />
+              <b>ลากไฟล์เกม (.zip) มาวาง หรือคลิกเพื่อเลือก</b>
+              <span className="muted" style={{ fontSize: 13 }}>
+                ขนาดไม่เกิน {MAX_FILE_MB} MB · จัดเก็บแบบส่วนตัวบน AWS S3
+              </span>
+              <input
+                type="file"
+                accept=".zip"
+                className="sr-only"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) setSizeMB(String(Math.max(1, Math.round(f.size / (1024 * 1024)))));
+                  setFormError(null);
+                }}
+              />
+            </label>
 
-          <label
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              padding: 28,
-              borderRadius: 12,
-              border: "1px dashed var(--border-strong)",
-              background: "var(--surface-input)",
-              cursor: "pointer",
-              textAlign: "center",
-            }}
-          >
-            <UploadIcon size={28} />
-            <b>ลากไฟล์เกม (.zip) มาวาง หรือคลิกเพื่อเลือก</b>
-            <span className="muted" style={{ fontSize: 13 }}>
-              ขนาดไม่เกิน 200 MB · จัดเก็บแบบส่วนตัวบน AWS S3
-            </span>
-            <input type="file" accept=".zip" className="sr-only" />
-          </label>
+            <div className="field">
+              <label htmlFor="up-cover">รูปปกเกม</label>
+              <div className="row" style={{ gap: 14 }}>
+                <span
+                  style={{
+                    width: 128,
+                    height: 80,
+                    flex: "none",
+                    borderRadius: 10,
+                    overflow: "hidden",
+                    background: "var(--surface-input)",
+                    border: "1px dashed var(--border-strong)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {coverUrl ? (
+                    <img
+                      src={coverUrl}
+                      alt="ตัวอย่างรูปปกที่เลือก"
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  ) : (
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      ยังไม่มีรูป
+                    </span>
+                  )}
+                </span>
+                <div className="field" style={{ flex: 1, minWidth: 180 }}>
+                  <input
+                    id="up-cover"
+                    type="file"
+                    accept="image/*"
+                    style={{ paddingTop: 11 }}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      setCoverUrl(f ? URL.createObjectURL(f) : null);
+                    }}
+                  />
+                  <span className="field__hint">
+                    แนะนำอัตราส่วน 16:10 · ถ้าไม่ใส่ ระบบจะใช้ภาพปกจำลองให้ก่อน
+                  </span>
+                </div>
+              </div>
+            </div>
 
-          <div className="field">
-            <label htmlFor="up-shots">ภาพหน้าจอ (สูงสุด 5 ภาพ)</label>
-            <input id="up-shots" type="file" accept="image/*" multiple style={{ paddingTop: 11 }} />
-          </div>
+            <div className="field">
+              <label htmlFor="up-size">ขนาดไฟล์เกม (MB)</label>
+              <input
+                id="up-size"
+                type="number"
+                min={1}
+                max={MAX_FILE_MB}
+                value={sizeMB}
+                onChange={(e) => { setSizeMB(e.target.value); setFormError(null); }}
+              />
+              <span className="field__hint">เลือกไฟล์ด้านบนแล้วช่องนี้จะกรอกให้อัตโนมัติ</span>
+            </div>
 
-          <button type="button" className="btn btn--primary btn--lg">
-            ส่งให้ผู้ดูแลระบบตรวจสอบ
-          </button>
+            {formError && (
+              <p role="alert" style={{ margin: 0, color: "var(--danger-fg)", fontSize: 14 }}>
+                {formError}
+              </p>
+            )}
+
+            <button type="submit" className="btn btn--primary btn--lg">
+              ส่งให้ผู้ดูแลระบบตรวจสอบ
+            </button>
+          </form>
+
           <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-            หลังส่ง เกมจะอยู่ในสถานะ “รอตรวจสอบ” จนกว่าผู้ดูแลระบบจะอนุมัติ
+            หลังส่ง เกมจะอยู่ในสถานะ “รอตรวจสอบ” จนกว่าผู้ดูแลระบบจะอนุมัติ จึงจะขึ้นหน้าร้านค้า
           </p>
         </section>
 
@@ -297,17 +425,10 @@ export default function DevDashboardPage() {
           style={{ flex: "1 1 320px", display: "flex", flexDirection: "column", gap: 14 }}
         >
           <h2 style={{ fontSize: 18, fontWeight: 600 }}>รีวิวที่รอการตอบกลับ</h2>
-          {PENDING_REVIEWS.map((r) => (
+          {PENDING_DEV_REVIEWS.map((r) => (
             <div
               key={r.who}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-                padding: 14,
-                borderRadius: 10,
-                background: "var(--surface-input)",
-              }}
+              style={{ display: "flex", flexDirection: "column", gap: 8, padding: 14, borderRadius: 10, background: "var(--surface-input)" }}
             >
               <div className="row row--between">
                 <span style={{ fontSize: 14, fontWeight: 600 }}>{r.who}</span>

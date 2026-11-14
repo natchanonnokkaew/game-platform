@@ -1,27 +1,22 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { GAMES } from "../data/mock";
 import { CoverArt } from "../components/GameCard";
 import { LockIcon } from "../components/icons";
-import { useCart } from "../store/cart";
+import { useShop } from "../store/shop";
 
 export default function CartPage() {
-  const cart = useCart();
+  const shop = useShop();
   const navigate = useNavigate();
   const [paying, setPaying] = useState(false);
 
-  const items = GAMES.filter((g) => cart.has(g.id));
+  const items = shop.games.filter((g) => shop.has(g.id));
   const total = items.reduce((sum, g) => sum + g.price, 0);
 
   async function handleCheckout() {
     setPaying(true);
     // TODO: ต่อกับ POST /api/orders/checkout
     await new Promise((r) => setTimeout(r, 600));
-    const order = cart.checkout(
-      items.map((g) => g.id),
-      items.map((g) => g.title),
-      total
-    );
+    const order = shop.checkout();
     // ส่งผลการชำระเงินไปให้หน้าคลังเกม เพื่อให้แบนเนอร์ขึ้นเฉพาะตอนจ่ายเงินสำเร็จ
     navigate("/library", { state: { paid: order }, replace: true });
   }
@@ -102,7 +97,7 @@ export default function CartPage() {
                 <button
                   type="button"
                   className="btn btn--secondary btn--sm"
-                  onClick={() => cart.remove(g.id)}
+                  onClick={() => shop.remove(g.id)}
                   style={{ flex: "none" }}
                 >
                   นำออก

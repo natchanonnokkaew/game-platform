@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import GameCard from "../components/GameCard";
-import { FEATURED, GAMES, GENRES } from "../data/mock";
-import { useCart } from "../store/cart";
+import { GENRES } from "../data/mock";
+import { useShop } from "../store/shop";
 
 type PriceBand = "all" | "lt200" | "200to400" | "gt400";
 type RatingBand = "all" | "4.5" | "4.0";
@@ -34,17 +34,19 @@ export default function StorePage() {
   const [sort, setSort] = useState<SortKey>("popular");
   const [params, setParams] = useSearchParams();
   const query = params.get("q") ?? "";
-  const cart = useCart();
+  const shop = useShop();
+  const catalog = shop.approvedGames;
+  const featured = catalog[0];
 
   const counts = useMemo(() => {
-    const map: Record<string, number> = { ทั้งหมด: GAMES.length };
-    for (const g of GAMES) map[g.genre] = (map[g.genre] ?? 0) + 1;
+    const map: Record<string, number> = { ทั้งหมด: catalog.length };
+    for (const g of catalog) map[g.genre] = (map[g.genre] ?? 0) + 1;
     return map;
-  }, []);
+  }, [catalog]);
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = GAMES.filter((g) => {
+    const list = catalog.filter((g) => {
       if (genre !== "ทั้งหมด" && g.genre !== genre) return false;
       if (price === "lt200" && g.price >= 200) return false;
       if (price === "200to400" && (g.price < 200 || g.price > 400)) return false;
@@ -61,11 +63,12 @@ export default function StorePage() {
     else if (sort === "newest") sorted.reverse();
     else sorted.sort((a, b) => b.reviews - a.reviews);
     return sorted;
-  }, [genre, price, rating, sort, query]);
+  }, [catalog, genre, price, rating, sort, query]);
 
   return (
     <>
       {/* ---------- แบนเนอร์เกมแนะนำ ---------- */}
+      {featured && (
       <section aria-labelledby="featured-title">
         <div
           className="card"
@@ -94,40 +97,39 @@ export default function StorePage() {
               เกมแนะนำประจำสัปดาห์
             </span>
             <h1 id="featured-title" style={{ fontSize: 44, fontWeight: 700, lineHeight: 1.15 }}>
-              {FEATURED.title}
+              {featured.title}
             </h1>
-            <p style={{ margin: 0, color: "var(--text-muted)" }}>
-              RPG ผจญภัยในอาณาจักรโบราณ สำรวจเมืองริมน้ำ ไขปริศนาวัดร้าง และสร้างทีมของคุณเอง
-            </p>
+            <p style={{ margin: 0, color: "var(--text-muted)" }}>{featured.description}</p>
             <div className="row" style={{ gap: 8 }}>
-              <span className="tag">RPG</span>
-              <span className="tag">Story Rich</span>
-              <span className="tag">Single-player</span>
+              <span className="tag">{featured.genre}</span>
+              <span className="tag">{featured.dev}</span>
+              <span className="tag">{featured.sizeMB} MB</span>
             </div>
             <div className="row" style={{ alignItems: "baseline", gap: 12, marginTop: 4 }}>
               <span style={{ fontFamily: "var(--font-head)", fontSize: 32, fontWeight: 600 }}>
-                ฿{FEATURED.price}
+                ฿{featured.price}
               </span>
               <span className="muted" style={{ fontSize: 14 }}>
-                <span className="star">★</span> {FEATURED.rating} · รีวิว{" "}
-                {FEATURED.reviews.toLocaleString()} รายการ
+                <span className="star">★</span> {featured.rating} · รีวิว{" "}
+                {featured.reviews.toLocaleString()} รายการ
               </span>
             </div>
             <div className="row" style={{ gap: 12, marginTop: 6 }}>
-              <Link to={`/games/${FEATURED.slug}`} className="btn btn--primary">
+              <Link to={`/games/${featured.slug}`} className="btn btn--primary">
                 ดูรายละเอียด
               </Link>
               <button
                 type="button"
                 className="btn btn--secondary"
-                onClick={() => cart.toggle(FEATURED.id)}
+                onClick={() => shop.toggle(featured.id)}
               >
-                {cart.has(FEATURED.id) ? "อยู่ในตะกร้าแล้ว" : "เพิ่มลงตะกร้า"}
+                {shop.has(featured.id) ? "อยู่ในตะกร้าแล้ว" : "เพิ่มลงตะกร้า"}
               </button>
             </div>
           </div>
         </div>
       </section>
+      )}
 
       {/* ---------- ประเภทเกม (ชิปแนวนอน) ---------- */}
       <section aria-labelledby="genre-title" className="stack" style={{ gap: 12 }}>

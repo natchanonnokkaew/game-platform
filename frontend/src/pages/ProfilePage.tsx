@@ -1,15 +1,13 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ACTIVITY, GAMES, MY_POSTS, MY_REVIEWS, PROFILE, RECENT_GAMES } from "../data/mock";
+import { ACTIVITY, MY_POSTS, MY_REVIEWS, PROFILE } from "../data/mock";
+import { useShop } from "../store/shop";
 import { PencilIcon, ShareIcon } from "../components/icons";
 
 const TABS = ["ภาพรวม", "เกมในคลัง", "รีวิว", "โพสต์คอมมูนิตี้"] as const;
 type Tab = (typeof TABS)[number];
 
-/** หา slug ของเกมจากชื่อ เพื่อลิงก์ไปหน้ารายละเอียดเกม */
-function gameSlug(title: string) {
-  return GAMES.find((g) => g.title === title)?.slug ?? "";
-}
+
 
 function CoverBanner() {
   return (
@@ -30,6 +28,23 @@ function CoverBanner() {
 
 export default function ProfilePage() {
   const [tab, setTab] = useState<Tab>("ภาพรวม");
+  const shop = useShop();
+
+  /** หา slug ของเกมจากชื่อ เพื่อลิงก์ไปหน้ารายละเอียดเกม */
+  const gameSlug = (title: string) => shop.games.find((g) => g.title === title)?.slug ?? "";
+
+  /** เกมในคลังของผู้ใช้ เรียงจากที่ได้มาล่าสุด */
+  const myGames = shop.library
+    .map((e) => ({ entry: e, game: shop.games.find((g) => g.id === e.gameId)! }))
+    .filter((x) => x.game);
+
+  const stats = [
+    { label: "เกมในคลัง", value: String(myGames.length) },
+    { label: "รีวิว", value: String(MY_REVIEWS.length) },
+    { label: "โพสต์คอมมูนิตี้", value: String(MY_POSTS.length) },
+    { label: "ผู้ติดตาม", value: "128" },
+    { label: "กำลังติดตาม", value: "57" },
+  ];
 
   return (
     <>
@@ -110,13 +125,13 @@ export default function ProfilePage() {
             borderTop: "1px solid var(--border-softer)",
           }}
         >
-          {PROFILE.stats.map((s, i) => (
+          {stats.map((s, i) => (
             <div
               key={s.label}
               style={{
                 padding: "18px 32px",
                 borderRight:
-                  i < PROFILE.stats.length - 1 ? "1px solid rgba(255,255,255,0.08)" : undefined,
+                  i < stats.length - 1 ? "1px solid rgba(255,255,255,0.08)" : undefined,
               }}
             >
               <dt className="muted" style={{ fontSize: 13 }}>
@@ -155,10 +170,15 @@ export default function ProfilePage() {
             style={{ flex: "999 1 540px", minWidth: 0, display: "flex", flexDirection: "column", gap: 16 }}
           >
             <h2 id="showcase-title" style={{ fontSize: 18, fontWeight: 600 }}>
-              เกมที่เล่นล่าสุด
+              เกมในคลังล่าสุด
             </h2>
+            {myGames.length === 0 && (
+              <p className="muted" style={{ margin: 0 }}>
+                ยังไม่มีเกมในคลัง — <Link to="/">ไปเลือกเกมจากร้านค้า</Link>
+              </p>
+            )}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 16 }}>
-              {RECENT_GAMES.slice(0, 4).map((g) => (
+              {myGames.slice(0, 4).map(({ entry, game: g }) => (
                 <div
                   key={g.title}
                   style={{
@@ -197,21 +217,15 @@ export default function ProfilePage() {
                       {g.title}
                     </b>
                   </span>
-                  <span style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
+                  <span style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 4 }}>
                     <span className="muted" style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                      <span>{g.hours} ชม.</span>
-                      <span>{g.progress} สำเร็จ</span>
+                      <span>{g.genre}</span>
+                      <span>{entry.acquiredAt}</span>
                     </span>
-                    <span style={{ height: 6, borderRadius: 3, background: "var(--surface-nav)", overflow: "hidden" }}>
-                      <span
-                        style={{
-                          display: "block",
-                          height: "100%",
-                          width: g.progress,
-                          background: "var(--accent)",
-                          boxShadow: "var(--glow-accent)",
-                        }}
-                      />
+                    <span className="muted" style={{ fontSize: 13 }}>
+                      {entry.downloadCount === 0
+                        ? "ยังไม่ดาวน์โหลด"
+                        : `ดาวน์โหลดแล้ว ${entry.downloadCount} ครั้ง`}
                     </span>
                   </span>
                 </div>
@@ -258,7 +272,12 @@ export default function ProfilePage() {
           aria-label="เกมในคลัง"
           style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 18 }}
         >
-          {RECENT_GAMES.map((g) => (
+          {myGames.length === 0 && (
+            <p className="muted" style={{ margin: 0 }}>
+              ยังไม่มีเกมในคลัง — <Link to="/">ไปเลือกเกมจากร้านค้า</Link>
+            </p>
+          )}
+          {myGames.map(({ game: g }) => (
             <Link
               key={g.title}
               to="/library"
@@ -291,7 +310,7 @@ export default function ProfilePage() {
                 <b style={{ position: "relative", fontFamily: "var(--font-head)", fontSize: 22 }}>{g.title}</b>
               </span>
               <span className="muted" style={{ padding: "12px 14px", fontSize: 14 }}>
-                เล่นไปแล้ว {g.hours} ชั่วโมง
+                {g.dev} · {g.sizeMB} MB
               </span>
             </Link>
           ))}

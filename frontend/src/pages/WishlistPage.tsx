@@ -1,11 +1,10 @@
 import { Link } from "react-router-dom";
-import { GAMES } from "../data/mock";
 import GameCard from "../components/GameCard";
-import { useCart } from "../store/cart";
+import { useShop } from "../store/shop";
 
 export default function WishlistPage() {
-  const cart = useCart();
-  const items = GAMES.filter((g) => cart.inWishlist(g.id));
+  const shop = useShop();
+  const items = shop.approvedGames.filter((g) => shop.inWishlist(g.id));
 
   return (
     <>
@@ -28,7 +27,7 @@ export default function WishlistPage() {
           <button
             type="button"
             className="btn btn--primary"
-            onClick={() => items.forEach((g) => cart.add(g.id))}
+            onClick={() => items.forEach((g) => shop.add(g.id))}
           >
             ใส่ตะกร้าทั้งหมด
           </button>

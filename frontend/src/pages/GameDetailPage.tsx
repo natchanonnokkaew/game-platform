@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
-  GAMES,
   GAME_REVIEWS,
   PROFILE,
   RATING_BARS,
@@ -10,24 +9,40 @@ import {
   type GameReview,
 } from "../data/mock";
 import { HeartIcon, LockIcon } from "../components/icons";
-import { useCart } from "../store/cart";
+import { useShop } from "../store/shop";
 
 const STAR_WORDS = ["ยังไม่ได้เลือก", "แย่", "พอใช้", "ดี", "ดีมาก", "ยอดเยี่ยม"];
 
 export default function GameDetailPage() {
   const { slug } = useParams<{ slug: string }>();
-  const game = GAMES.find((g) => g.slug === slug) ?? GAMES[0];
+  const shop = useShop();
+  const game = shop.findGame(slug ?? "");
 
   const [shot, setShot] = useState(0);
   const [stars, setStars] = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [myReviews, setMyReviews] = useState<GameReview[]>([]);
-  const cart = useCart();
+
+  if (!game) {
+    return (
+      <div className="stack" style={{ gap: 12 }}>
+        <h1 className="page-title">ไม่พบเกมนี้</h1>
+        <p className="muted" style={{ margin: 0 }}>
+          เกมอาจถูกนำออกจากร้านค้า หรือยังไม่ได้รับการอนุมัติ
+        </p>
+        <Link to="/" className="btn btn--primary" style={{ alignSelf: "flex-start" }}>
+          กลับไปหน้าร้านค้า
+        </Link>
+      </div>
+    );
+  }
 
   const current = SCREENSHOTS[shot];
-  const inCart = cart.has(game.id);
-  const wish = cart.inWishlist(game.id);
+  const inCart = shop.has(game.id);
+  const wish = shop.inWishlist(game.id);
+  const owned = shop.owns(game.id);
+  const reviews = [...myReviews, ...(GAME_REVIEWS[game.slug] ?? [])];
 
   return (
     <>
@@ -151,16 +166,9 @@ export default function GameDetailPage() {
             <h2 id="about-title" className="section-title" style={{ marginBottom: 12 }}>
               เกี่ยวกับเกมนี้
             </h2>
-            <p className="dim" style={{ marginTop: 0, marginBottom: 12 }}>
-              ออกเดินทางในอาณาจักรสมมติริมแม่น้ำ ที่ซึ่งเสียงระฆังจากวัดร้างปลุกพลังโบราณให้ตื่นขึ้น
-              ผู้เล่นรับบทนักเดินทางที่ต้องรวบรวมเพื่อนร่วมทาง ค้นหาเศษชิ้นส่วนของระฆังทั้งเจ็ด
-              และตัดสินใจว่าจะใช้พลังนั้นปกป้องหรือเปลี่ยนแปลงโลก
+            <p className="dim" style={{ marginTop: 0, marginBottom: 0 }}>
+              {game.description}
             </p>
-            <ul className="dim" style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6 }}>
-              <li>ระบบต่อสู้แบบผลัดตาที่ผสมการจับจังหวะ</li>
-              <li>เนื้อเรื่องแยกเส้นทาง 3 ตอนจบ ขึ้นกับการตัดสินใจของผู้เล่น</li>
-              <li>รองรับภาษาไทยและอังกฤษ ทั้งเสียงพากย์และคำบรรยาย</li>
-            </ul>
           </section>
 
           <section aria-labelledby="req-title">
@@ -201,95 +209,101 @@ export default function GameDetailPage() {
               </span>
             </div>
 
-            <form
-              aria-label="เขียนรีวิว"
-              className="card card--pad"
-              style={{ display: "flex", flexDirection: "column", gap: 12 }}
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (stars === 0) {
-                  setReviewError("กรุณาให้คะแนนก่อนส่งรีวิว");
-                  return;
-                }
-                if (!reviewText.trim()) {
-                  setReviewError("กรุณาเขียนความคิดเห็นของคุณ");
-                  return;
-                }
-                // TODO: ต่อกับ POST /api/reviews
-                setMyReviews((prev) => [
-                  {
-                    author: PROFILE.name,
-                    initial: PROFILE.initial,
-                    avatarColor: "#3B5A9A",
-                    stars,
-                    text: reviewText.trim(),
-                    meta: "เพิ่งเขียนเมื่อสักครู่",
-                  },
-                  ...prev,
-                ]);
-                setStars(0);
-                setReviewText("");
-                setReviewError(null);
-              }}
-            >
-              <div className="row" style={{ gap: 12 }}>
-                <span style={{ fontWeight: 600 }}>ให้คะแนน</span>
-                <div role="radiogroup" aria-label="คะแนน" style={{ display: "flex", gap: 4 }}>
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      role="radio"
-                      aria-checked={n === stars}
-                      aria-label={`${n} ดาว`}
-                      onClick={() => setStars(n)}
-                      style={{
-                        width: 44,
-                        height: 44,
-                        border: "none",
-                        background: "transparent",
-                        cursor: "pointer",
-                        padding: 0,
-                        fontSize: 28,
-                        lineHeight: "44px",
-                        color: n <= stars ? "var(--warn-fg)" : "#3A4150",
-                      }}
-                    >
-                      ★
-                    </button>
-                  ))}
+            {owned ? (
+              <form
+                aria-label="เขียนรีวิว"
+                className="card card--pad"
+                style={{ display: "flex", flexDirection: "column", gap: 12 }}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (stars === 0) {
+                    setReviewError("กรุณาให้คะแนนก่อนส่งรีวิว");
+                    return;
+                  }
+                  if (!reviewText.trim()) {
+                    setReviewError("กรุณาเขียนความคิดเห็นของคุณ");
+                    return;
+                  }
+                  // TODO: ต่อกับ POST /api/reviews
+                  setMyReviews((prev) => [
+                    {
+                      author: PROFILE.name,
+                      initial: PROFILE.initial,
+                      avatarColor: "#3B5A9A",
+                      stars,
+                      text: reviewText.trim(),
+                      meta: "เพิ่งเขียนเมื่อสักครู่",
+                    },
+                    ...prev,
+                  ]);
+                  setStars(0);
+                  setReviewText("");
+                  setReviewError(null);
+                }}
+              >
+                <div className="row" style={{ gap: 12 }}>
+                  <span style={{ fontWeight: 600 }}>ให้คะแนน</span>
+                  <div role="radiogroup" aria-label="คะแนน" style={{ display: "flex", gap: 4 }}>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        role="radio"
+                        aria-checked={n === stars}
+                        aria-label={`${n} ดาว`}
+                        onClick={() => setStars(n)}
+                        style={{
+                          width: 44,
+                          height: 44,
+                          border: "none",
+                          background: "transparent",
+                          cursor: "pointer",
+                          padding: 0,
+                          fontSize: 28,
+                          lineHeight: "44px",
+                          color: n <= stars ? "var(--warn-fg)" : "#3A4150",
+                        }}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+                  <span className="muted" style={{ fontSize: 14 }}>
+                    {STAR_WORDS[stars]}
+                  </span>
                 </div>
-                <span className="muted" style={{ fontSize: 14 }}>
-                  {STAR_WORDS[stars]}
-                </span>
-              </div>
 
-              <div className="field">
-                <label htmlFor="review-text">ความคิดเห็นของคุณ</label>
-                <textarea
-                  id="review-text"
-                  rows={3}
-                  placeholder="เล่าประสบการณ์ของคุณกับเกมนี้…"
-                  value={reviewText}
-                  onChange={(e) => {
-                    setReviewText(e.target.value);
-                    setReviewError(null);
-                  }}
-                />
-              </div>
+                <div className="field">
+                  <label htmlFor="review-text">ความคิดเห็นของคุณ</label>
+                  <textarea
+                    id="review-text"
+                    rows={3}
+                    placeholder="เล่าประสบการณ์ของคุณกับเกมนี้…"
+                    value={reviewText}
+                    onChange={(e) => {
+                      setReviewText(e.target.value);
+                      setReviewError(null);
+                    }}
+                  />
+                </div>
 
-              {reviewError && (
-                <p role="alert" style={{ margin: 0, color: "var(--danger-fg)", fontSize: 14 }}>
-                  {reviewError}
-                </p>
-              )}
+                {reviewError && (
+                  <p role="alert" style={{ margin: 0, color: "var(--danger-fg)", fontSize: 14 }}>
+                    {reviewError}
+                  </p>
+                )}
 
-              <button type="submit" className="btn btn--primary" style={{ alignSelf: "flex-end", height: 44 }}>
-                ส่งรีวิว
-              </button>
-            </form>
+                <button type="submit" className="btn btn--primary" style={{ alignSelf: "flex-end", height: 44 }}>
+                  ส่งรีวิว
+                </button>
+              </form>
+            ) : (
+              <p className="card card--pad muted" style={{ margin: 0 }}>
+                ต้องมีเกมนี้อยู่ในคลังของคุณก่อนจึงจะเขียนรีวิวได้
+              </p>
+            )}
 
-            {[...myReviews, ...GAME_REVIEWS].map((r, i) => (
+            {reviews.map((r, i) => (
               <article
                 key={`${r.author}-${i}`}
                 className="card card--pad"
@@ -358,32 +372,45 @@ export default function GameDetailPage() {
             <span style={{ fontFamily: "var(--font-head)", fontSize: 40, fontWeight: 600, lineHeight: 1 }}>
               ฿{game.price}
             </span>
-            <Link
-              to="/cart"
-              className="btn btn--primary btn--lg btn--block"
-              onClick={() => cart.add(game.id)}
-            >
-              ซื้อเลย
-            </Link>
-            <button
-              type="button"
-              className="btn btn--secondary btn--lg btn--block"
-              onClick={() => cart.toggle(game.id)}
-            >
-              {inCart ? "อยู่ในตะกร้าแล้ว ✓" : "เพิ่มลงตะกร้า"}
-            </button>
-            <button
-              type="button"
-              className="btn btn--block"
-              aria-pressed={wish}
-              onClick={() => cart.toggleWishlist(game.id)}
-              style={{ background: "var(--surface-input)", color: "var(--text)", height: 44 }}
-            >
-              <span style={{ color: "#FF8FA3", display: "flex" }}>
-                <HeartIcon size={18} filled={wish} />
-              </span>
-              {wish ? "อยู่ใน Wishlist แล้ว" : "เพิ่มใน Wishlist"}
-            </button>
+            {owned ? (
+              <>
+                <span className="pill pill--ok" style={{ alignSelf: "flex-start" }}>
+                  ✓ คุณเป็นเจ้าของเกมนี้แล้ว
+                </span>
+                <Link to="/library" className="btn btn--primary btn--lg btn--block">
+                  ไปที่คลังเกม
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/cart"
+                  className="btn btn--primary btn--lg btn--block"
+                  onClick={() => shop.add(game.id)}
+                >
+                  ซื้อเลย
+                </Link>
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--lg btn--block"
+                  onClick={() => shop.toggle(game.id)}
+                >
+                  {inCart ? "อยู่ในตะกร้าแล้ว ✓" : "เพิ่มลงตะกร้า"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--block"
+                  aria-pressed={wish}
+                  onClick={() => shop.toggleWishlist(game.id)}
+                  style={{ background: "var(--surface-input)", color: "var(--text)", height: 44 }}
+                >
+                  <span style={{ color: "#FF8FA3", display: "flex" }}>
+                    <HeartIcon size={18} filled={wish} />
+                  </span>
+                  {wish ? "อยู่ใน Wishlist แล้ว" : "เพิ่มใน Wishlist"}
+                </button>
+              </>
+            )}
             <p className="muted" style={{ margin: 0, fontSize: 13, display: "flex", gap: 8, alignItems: "flex-start" }}>
               <span style={{ flex: "none", marginTop: 3, display: "flex" }}>
                 <LockIcon />
@@ -408,9 +435,9 @@ export default function GameDetailPage() {
               <dt className="muted">ประเภท</dt>
               <dd style={{ margin: 0 }}>{game.genre}</dd>
               <dt className="muted">วางจำหน่าย</dt>
-              <dd style={{ margin: 0 }}>12 ส.ค. 2569</dd>
+              <dd style={{ margin: 0 }}>{game.releaseDate}</dd>
               <dt className="muted">ขนาดไฟล์</dt>
-              <dd style={{ margin: 0 }}>148 MB</dd>
+              <dd style={{ margin: 0 }}>{game.sizeMB} MB</dd>
               <dt className="muted">ภาษา</dt>
               <dd style={{ margin: 0 }}>ไทย, อังกฤษ</dd>
             </dl>

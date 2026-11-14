@@ -2,7 +2,6 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import {
   COMMUNITY_RULES,
-  GAMES,
   MY_GROUPS,
   ONLINE_FRIENDS,
   POSTS,
@@ -12,16 +11,18 @@ import {
   type Post,
 } from "../data/mock";
 import { ChatIcon, HeartIcon, ShareIcon } from "../components/icons";
+import { useShop } from "../store/shop";
 
 const SORTS = ["ล่าสุด", "ยอดนิยม", "ที่ติดตาม"] as const;
 type Sort = (typeof SORTS)[number];
 
-/** หา slug ของเกมจากชื่อ เพื่อลิงก์ไปหน้ารายละเอียดเกม */
-function gameSlug(title: string) {
-  return GAMES.find((g) => g.title === title)?.slug;
-}
+
 
 export default function CommunityPage() {
+  const shop = useShop();
+  /** หา slug ของเกมจากชื่อ เพื่อลิงก์ไปหน้ารายละเอียดเกม */
+  const gameSlug = (title: string) => shop.approvedGames.find((g) => g.title === title)?.slug;
+
   const [posts, setPosts] = useState<Post[]>(POSTS);
   const [cat, setCat] = useState<string>("ทั้งหมด");
   const [sort, setSort] = useState<Sort>("ล่าสุด");
@@ -239,7 +240,7 @@ export default function CommunityPage() {
                 style={{ width: "auto", height: 44 }}
               >
                 <option>ทั่วไป</option>
-                {GAMES.map((g) => (
+                {shop.approvedGames.map((g) => (
                   <option key={g.id}>{g.title}</option>
                 ))}
               </select>
