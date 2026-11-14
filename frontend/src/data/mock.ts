@@ -23,7 +23,12 @@ export interface Game {
   color: string;
   accent: string;
   coverUrl?: string | null;
+  /** ภาพหน้าจอที่ผู้พัฒนาอัปโหลด */
+  screenshots: string[];
+  /** คลิปวิดีโอแนะนำเกม (ลิงก์ YouTube หรือไฟล์ที่อัปโหลด) */
+  videoUrl?: string | null;
   status: GameStatus;
+  /** ขนาดไฟล์เกมเป็น MB — 0 หมายถึงยังไม่ได้อัปโหลดไฟล์ */
   sizeMB: number;
   releaseDate: string;
   description: string;
@@ -72,11 +77,13 @@ const PENDING_SEED = [
 
 /** เกมตั้งต้นบนแพลตฟอร์ม — อนุมัติแล้ว 12 เกม รอตรวจสอบ 4 เกม ถูกปฏิเสธ 1 เกม */
 export const SEED_GAMES: Game[] = [
-  ...APPROVED_SEED.map((g) => ({ ...g, status: "APPROVED" as const, coverUrl: null })),
+  ...APPROVED_SEED.map((g) => ({ ...g, status: "APPROVED" as const, coverUrl: null, screenshots: [], videoUrl: null })),
   ...PENDING_SEED.map((g) => ({
     ...g,
     status: "PENDING" as const,
     coverUrl: null,
+    screenshots: [],
+    videoUrl: null,
     rating: 0,
     reviews: 0,
     unitsSold: 0,
@@ -94,6 +101,8 @@ export const SEED_GAMES: Game[] = [
     color: "#1A2440",
     accent: "#FFA94D",
     coverUrl: null,
+    screenshots: [],
+    videoUrl: null,
     status: "REJECTED",
     sizeMB: 248,
     releaseDate: "—",

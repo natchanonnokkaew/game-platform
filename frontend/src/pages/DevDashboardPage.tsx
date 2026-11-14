@@ -1,7 +1,8 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout, { Kpi, type SidebarItem } from "../components/DashboardLayout";
-import { CURRENT_DEV, GENRES, PENDING_DEV_REVIEWS } from "../data/mock";
+import { CURRENT_DEV, GENRES, type Game } from "../data/mock";
+import GameEditor from "../components/GameEditor";
 import {
   ChartIcon,
   GamepadIcon,
@@ -46,6 +47,9 @@ export default function DevDashboardPage() {
   const [description, setDescription] = useState("");
   const [sizeMB, setSizeMB] = useState("");
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Game | null>(null);
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState<string | null>(null);
 
@@ -53,6 +57,13 @@ export default function DevDashboardPage() {
   const approved = myGames.filter((g) => g.status === "APPROVED");
   const pending = myGames.filter((g) => g.status === "PENDING");
   const rejected = myGames.filter((g) => g.status === "REJECTED");
+
+  /** รีวิวของเกมที่ผู้พัฒนาคนนี้เป็นเจ้าของ — ที่ยังไม่ตอบขึ้นก่อน */
+  const myReviews = shop.reviews
+    .map((review) => ({ review, game: myGames.find((g) => g.id === review.gameId)! }))
+    .filter((x) => x.game)
+    .sort((a, b) => Number(!!a.review.devReply) - Number(!!b.review.devReply));
+  const awaitingReply = myReviews.filter((x) => !x.review.devReply).length;
 
   const unitsSold = approved.reduce((sum, g) => sum + g.unitsSold, 0);
   const revenue = approved.reduce((sum, g) => sum + g.unitsSold * g.price, 0);
@@ -84,12 +95,12 @@ export default function DevDashboardPage() {
     setSubmitted(null);
 
     const priceNum = Number(price);
-    const sizeNum = Number(sizeMB);
+    const sizeNum = sizeMB.trim() === "" ? 0 : Number(sizeMB);
 
     if (!title.trim()) return setFormError("กรุณากรอกชื่อเกม");
     if (!description.trim()) return setFormError("กรุณากรอกคำอธิบายเกม");
     if (!Number.isFinite(priceNum) || priceNum < 0) return setFormError("ราคาต้องเป็นตัวเลขไม่ติดลบ");
-    if (!Number.isFinite(sizeNum) || sizeNum <= 0) return setFormError("กรุณาระบุขนาดไฟล์เกม");
+    if (!Number.isFinite(sizeNum) || sizeNum < 0) return setFormError("ขนาดไฟล์ไม่ถูกต้อง");
     if (sizeNum > MAX_FILE_MB) return setFormError(`ไฟล์เกมต้องไม่เกิน ${MAX_FILE_MB} MB`);
 
     // TODO: ต่อกับ POST /api/games (multipart พร้อมไฟล์เกมจริง)
@@ -140,7 +151,7 @@ export default function DevDashboardPage() {
         <Kpi label="รายได้สะสม" value={`฿${revenue.toLocaleString()}`} delta="คิดจากยอดขายจริงของเกมที่อนุมัติแล้ว" deltaTone="var(--text-muted)" />
         <Kpi label="จำนวนที่ขายได้" value={`${unitsSold.toLocaleString()} ชุด`} delta={`จาก ${approved.length} เกม`} deltaTone="var(--text-muted)" />
         <Kpi label="เกมที่เผยแพร่" value={`${approved.length} เกม`} delta={`รอตรวจสอบ ${pending.length} · ถูกปฏิเสธ ${rejected.length}`} deltaTone="var(--text-muted)" />
-        <Kpi label="คะแนนรีวิวเฉลี่ย" value={`★ ${avgRating}`} delta={`รอการตอบกลับ ${PENDING_DEV_REVIEWS.length} รีวิว`} deltaTone="var(--text-muted)" />
+        <Kpi label="คะแนนรีวิวเฉลี่ย" value={`★ ${avgRating}`} delta={`รอการตอบกลับ ${awaitingReply} รีวิว`} deltaTone="var(--text-muted)" />
       </div>
 
       {/* ---------- กราฟยอดขาย ---------- */}
@@ -241,6 +252,11 @@ export default function DevDashboardPage() {
                           เหตุผล: {g.rejectNote}
                         </div>
                       )}
+                      {g.sizeMB === 0 && (
+                        <div style={{ fontSize: 13, color: "var(--warn-fg)" }}>
+                          ⚠ ยังไม่มีไฟล์เกม
+                        </div>
+                      )}
                     </td>
                     <td className="num">฿{g.price}</td>
                     <td className="num">{g.status === "APPROVED" ? g.unitsSold : "—"}</td>
@@ -251,8 +267,8 @@ export default function DevDashboardPage() {
                       <span className={`pill ${STATUS_LABEL[g.status].tone}`}>{STATUS_LABEL[g.status].text}</span>
                     </td>
                     <td>
-                      <button type="button" className="btn btn--secondary btn--sm">
-                        {g.status === "REJECTED" ? "ส่งใหม่" : "แก้ไข"}
+                      <button type="button" className="btn btn--secondary btn--sm" onClick={() => setEditing(g)}>
+                        {g.status === "REJECTED" ? "แก้ไขและส่งใหม่" : "แก้ไข"}
                       </button>
                     </td>
                   </tr>
@@ -328,7 +344,7 @@ export default function DevDashboardPage() {
               <UploadIcon size={28} />
               <b>ลากไฟล์เกม (.zip) มาวาง หรือคลิกเพื่อเลือก</b>
               <span className="muted" style={{ fontSize: 13 }}>
-                ขนาดไม่เกิน {MAX_FILE_MB} MB · จัดเก็บแบบส่วนตัวบน AWS S3
+                ขนาดไม่เกิน {MAX_FILE_MB} MB · ยังไม่มีไฟล์ก็ส่งได้ ค่อยเพิ่มทีหลังจากปุ่มแก้ไข
               </span>
               <input
                 type="file"
@@ -399,7 +415,7 @@ export default function DevDashboardPage() {
                 value={sizeMB}
                 onChange={(e) => { setSizeMB(e.target.value); setFormError(null); }}
               />
-              <span className="field__hint">เลือกไฟล์ด้านบนแล้วช่องนี้จะกรอกให้อัตโนมัติ</span>
+              <span className="field__hint">เว้นว่างได้ถ้ายังไม่มีไฟล์เกม</span>
             </div>
 
             {formError && (
@@ -424,14 +440,23 @@ export default function DevDashboardPage() {
           className="card card--pad"
           style={{ flex: "1 1 320px", display: "flex", flexDirection: "column", gap: 14 }}
         >
-          <h2 style={{ fontSize: 18, fontWeight: 600 }}>รีวิวที่รอการตอบกลับ</h2>
-          {PENDING_DEV_REVIEWS.map((r) => (
+          <h2 style={{ fontSize: 18, fontWeight: 600 }}>รีวิวจากผู้เล่น</h2>
+
+          {myReviews.length === 0 && (
+            <p className="muted" style={{ margin: 0, fontSize: 14 }}>
+              ยังไม่มีรีวิวสำหรับเกมของคุณ
+            </p>
+          )}
+
+          {myReviews.map(({ review: r, game: g }) => (
             <div
-              key={r.who}
+              key={r.id}
               style={{ display: "flex", flexDirection: "column", gap: 8, padding: 14, borderRadius: 10, background: "var(--surface-input)" }}
             >
               <div className="row row--between">
-                <span style={{ fontSize: 14, fontWeight: 600 }}>{r.who}</span>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>
+                  {r.author} · {g.title}
+                </span>
                 <span className="star" style={{ fontSize: 14 }}>
                   {"★".repeat(r.stars)}
                   <span style={{ color: "#3A4150" }}>{"★".repeat(5 - r.stars)}</span>
@@ -440,13 +465,74 @@ export default function DevDashboardPage() {
               <p className="dim" style={{ margin: 0, fontSize: 14 }}>
                 {r.text}
               </p>
-              <button type="button" className="btn btn--secondary btn--sm" style={{ alignSelf: "flex-start" }}>
-                ตอบกลับ
-              </button>
+
+              {r.devReply ? (
+                <div style={{ padding: "10px 12px", borderRadius: 8, background: "var(--surface-card)" }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)" }}>
+                    คำตอบของคุณ
+                  </span>
+                  <p className="dim" style={{ margin: 0, fontSize: 14 }}>
+                    {r.devReply.text}
+                  </p>
+                </div>
+              ) : replyTo === r.id ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!replyText.trim()) return;
+                    // TODO: ต่อกับ POST /api/reviews/:id/reply
+                    shop.replyReview(r.id, CURRENT_DEV, replyText.trim());
+                    setReplyTo(null);
+                    setReplyText("");
+                  }}
+                  style={{ gap: 8 }}
+                >
+                  <label htmlFor={`reply-${r.id}`} className="sr-only">
+                    ตอบกลับรีวิวของ {r.author}
+                  </label>
+                  <textarea
+                    id={`reply-${r.id}`}
+                    rows={2}
+                    placeholder="เขียนคำตอบถึงผู้เล่น…"
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    style={{ minHeight: 70 }}
+                  />
+                  <div className="row" style={{ gap: 8 }}>
+                    <button type="submit" className="btn btn--primary btn--sm">
+                      ส่งคำตอบ
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--secondary btn--sm"
+                      onClick={() => {
+                        setReplyTo(null);
+                        setReplyText("");
+                      }}
+                    >
+                      ยกเลิก
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  style={{ alignSelf: "flex-start" }}
+                  onClick={() => {
+                    setReplyTo(r.id);
+                    setReplyText("");
+                  }}
+                >
+                  ตอบกลับ
+                </button>
+              )}
             </div>
           ))}
         </section>
       </div>
+
+      {editing && <GameEditor game={editing} onClose={() => setEditing(null)} />}
     </DashboardLayout>
   );
 }

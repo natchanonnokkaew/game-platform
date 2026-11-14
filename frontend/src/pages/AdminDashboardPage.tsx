@@ -123,18 +123,26 @@ export default function AdminDashboardPage() {
                   <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
                     <b>{q.title}</b>
                     <span className="muted" style={{ fontSize: 13 }}>
-                      {q.dev} · {q.genre} · ฿{q.price} · ไฟล์ {q.sizeMB} MB · ส่งเมื่อ {q.submittedAt}
+                      {q.dev} · {q.genre} · ฿{q.price} · {q.sizeMB > 0 ? `ไฟล์ ${q.sizeMB} MB` : "ยังไม่มีไฟล์"} · ส่งเมื่อ {q.submittedAt}
                     </span>
                     {q.sizeMB > MAX_FILE_MB && (
                       <span style={{ fontSize: 13, color: "var(--danger-fg)" }}>
                         ⚠ ไฟล์เกินขนาดที่กำหนด
                       </span>
                     )}
+                    {q.sizeMB === 0 && (
+                      <span style={{ fontSize: 13, color: "var(--warn-fg)" }}>
+                        ⚠ ผู้พัฒนายังไม่ได้อัปโหลดไฟล์เกม — ผู้ซื้อจะดาวน์โหลดไม่ได้
+                      </span>
+                    )}
+                    <span className="muted" style={{ fontSize: 13 }}>
+                      {q.screenshots.length} ภาพหน้าจอ · {q.videoUrl ? "มีคลิปวิดีโอ" : "ไม่มีคลิป"}
+                    </span>
                   </span>
                 </div>
 
                 <div className="row" style={{ gap: 10, flexWrap: "nowrap" }}>
-                  <button type="button" className="btn btn--secondary btn--sm">
+                  <button type="button" className="btn btn--secondary btn--sm" disabled={q.sizeMB === 0}>
                     ดูไฟล์
                   </button>
                   <button

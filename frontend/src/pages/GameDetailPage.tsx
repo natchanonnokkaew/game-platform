@@ -1,13 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import {
-  GAME_REVIEWS,
-  PROFILE,
-  RATING_BARS,
-  SCREENSHOTS,
-  SYSTEM_REQS,
-  type GameReview,
-} from "../data/mock";
+import { PROFILE, RATING_BARS, SCREENSHOTS, SYSTEM_REQS } from "../data/mock";
 import { HeartIcon, LockIcon } from "../components/icons";
 import { useShop } from "../store/shop";
 
@@ -22,7 +15,6 @@ export default function GameDetailPage() {
   const [stars, setStars] = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [reviewError, setReviewError] = useState<string | null>(null);
-  const [myReviews, setMyReviews] = useState<GameReview[]>([]);
 
   if (!game) {
     return (
@@ -42,7 +34,9 @@ export default function GameDetailPage() {
   const inCart = shop.has(game.id);
   const wish = shop.inWishlist(game.id);
   const owned = shop.owns(game.id);
-  const reviews = [...myReviews, ...(GAME_REVIEWS[game.slug] ?? [])];
+  const reviews = shop.reviewsFor(game.id);
+  /** ถ้าผู้พัฒนาอัปโหลดภาพหน้าจอจริง ให้ใช้ภาพนั้น ไม่งั้นใช้ภาพจำลอง */
+  const shots = game.screenshots.length > 0 ? game.screenshots : null;
 
   return (
     <>
@@ -84,17 +78,25 @@ export default function GameDetailPage() {
                 border: "1px solid var(--border-soft)",
               }}
             >
-              <svg
-                viewBox="0 0 800 450"
-                preserveAspectRatio="xMidYMid slice"
-                role="img"
-                aria-label={current.caption}
-                style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
-              >
-                <circle cx={current.sunX} cy="140" r="100" fill={current.accent} opacity="0.85" />
-                <path d="M0 320 L150 230 L280 290 L420 190 L560 280 L700 210 L800 260 L800 450 L0 450Z" fill="#000" opacity="0.25" />
-                <path d="M0 370 L130 330 L260 360 L400 310 L540 360 L680 320 L800 350 L800 450 L0 450Z" fill="#000" opacity="0.3" />
-              </svg>
+              {shots ? (
+                <img
+                  src={shots[Math.min(shot, shots.length - 1)]}
+                  alt={`ภาพหน้าจอของ ${game.title}`}
+                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                <svg
+                  viewBox="0 0 800 450"
+                  preserveAspectRatio="xMidYMid slice"
+                  role="img"
+                  aria-label={current.caption}
+                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+                >
+                  <circle cx={current.sunX} cy="140" r="100" fill={current.accent} opacity="0.85" />
+                  <path d="M0 320 L150 230 L280 290 L420 190 L560 280 L700 210 L800 260 L800 450 L0 450Z" fill="#000" opacity="0.25" />
+                  <path d="M0 370 L130 330 L260 360 L400 310 L540 360 L680 320 L800 350 L800 450 L0 450Z" fill="#000" opacity="0.3" />
+                </svg>
+              )}
               <span
                 style={{
                   position: "absolute",
@@ -106,7 +108,9 @@ export default function GameDetailPage() {
                   fontSize: 14,
                 }}
               >
-                {current.caption} · {shot + 1}/{SCREENSHOTS.length}
+                {shots
+                  ? `ภาพหน้าจอ · ${Math.min(shot, shots.length - 1) + 1}/${shots.length}`
+                  : `${current.caption} · ${shot + 1}/${SCREENSHOTS.length}`}
               </span>
               <span
                 style={{
@@ -120,22 +124,22 @@ export default function GameDetailPage() {
                   fontSize: 13,
                 }}
               >
-                ตัวอย่างภาพ (placeholder)
+                {shots ? "อัปโหลดโดยผู้พัฒนา" : "ตัวอย่างภาพ (placeholder)"}
               </span>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 10 }}>
-              {SCREENSHOTS.map((s, i) => (
+              {(shots ?? SCREENSHOTS).map((item, i) => (
                 <button
-                  key={s.caption}
+                  key={typeof item === "string" ? item : item.caption}
                   type="button"
                   onClick={() => setShot(i)}
-                  aria-label={`ดู${s.caption}`}
+                  aria-label={`ดูภาพหน้าจอที่ ${i + 1}`}
                   aria-pressed={i === shot}
                   style={{
                     aspectRatio: "16 / 9",
                     borderRadius: 8,
-                    background: s.bg,
+                    background: typeof item === "string" ? "var(--surface-input)" : item.bg,
                     border: `2px solid ${i === shot ? "var(--accent)" : "transparent"}`,
                     padding: 0,
                     cursor: "pointer",
@@ -145,21 +149,42 @@ export default function GameDetailPage() {
                     width: "100%",
                   }}
                 >
-                  <span
-                    style={{
-                      position: "absolute",
-                      right: "10%",
-                      top: "18%",
-                      width: "34%",
-                      aspectRatio: "1",
-                      borderRadius: "50%",
-                      background: s.accent,
-                      opacity: 0.85,
-                    }}
-                  />
+                  {typeof item === "string" ? (
+                    <img src={item} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <span
+                      style={{
+                        position: "absolute",
+                        right: "10%",
+                        top: "18%",
+                        width: "34%",
+                        aspectRatio: "1",
+                        borderRadius: "50%",
+                        background: item.accent,
+                        opacity: 0.85,
+                      }}
+                    />
+                  )}
                 </button>
               ))}
             </div>
+
+            {game.videoUrl && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 600 }}>คลิปแนะนำเกม</h3>
+                {/youtube\.com|youtu\.be|vimeo\.com/.test(game.videoUrl) ? (
+                  <a href={game.videoUrl} target="_blank" rel="noreferrer" className="btn btn--secondary" style={{ alignSelf: "flex-start" }}>
+                    เปิดคลิปวิดีโอ ↗
+                  </a>
+                ) : (
+                  <video
+                    src={game.videoUrl}
+                    controls
+                    style={{ width: "100%", borderRadius: 14, border: "1px solid var(--border-soft)" }}
+                  />
+                )}
+              </div>
+            )}
           </section>
 
           <section aria-labelledby="about-title">
@@ -225,17 +250,7 @@ export default function GameDetailPage() {
                     return;
                   }
                   // TODO: ต่อกับ POST /api/reviews
-                  setMyReviews((prev) => [
-                    {
-                      author: PROFILE.name,
-                      initial: PROFILE.initial,
-                      avatarColor: "#3B5A9A",
-                      stars,
-                      text: reviewText.trim(),
-                      meta: "เพิ่งเขียนเมื่อสักครู่",
-                    },
-                    ...prev,
-                  ]);
+                  shop.addReview(game.id, stars, reviewText.trim(), PROFILE.name, PROFILE.initial);
                   setStars(0);
                   setReviewText("");
                   setReviewError(null);
@@ -303,9 +318,9 @@ export default function GameDetailPage() {
               </p>
             )}
 
-            {reviews.map((r, i) => (
+            {reviews.map((r) => (
               <article
-                key={`${r.author}-${i}`}
+                key={r.id}
                 className="card card--pad"
                 style={{ display: "flex", flexDirection: "column", gap: 10 }}
               >

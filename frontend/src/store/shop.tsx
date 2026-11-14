@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
-import { SEED_GAMES, type Game, type OrderRow } from "../data/mock";
+import { GAME_REVIEWS, SEED_GAMES, type Game, type GameReview, type OrderRow } from "../data/mock";
 
 /**
  * สถานะกลางของแพลตฟอร์ม — ใช้ร่วมกันทุกหน้า
@@ -27,15 +27,34 @@ export interface PaidOrder {
   total: number;
 }
 
+export interface Review extends GameReview {
+  id: string;
+  gameId: string;
+}
+
+/** รีวิวตั้งต้นของเกมที่ขายอยู่แล้ว */
+const SEED_REVIEWS: Review[] = Object.entries(GAME_REVIEWS).flatMap(([slug, list]) => {
+  const game = SEED_GAMES.find((g) => g.slug === slug);
+  return game ? list.map((r, i) => ({ ...r, id: `${slug}-r${i}`, gameId: game.id })) : [];
+});
+
 export interface NewGameDraft {
   title: string;
   price: number;
   genre: string;
   description: string;
+  /** 0 = ยังไม่ได้อัปโหลดไฟล์เกม (ใส่ทีหลังได้) */
   sizeMB: number;
   /** รูปปกที่ผู้พัฒนาอัปโหลด (object URL ของไฟล์ที่เลือก) */
   coverUrl?: string | null;
+  screenshots?: string[];
+  videoUrl?: string | null;
 }
+
+/** ข้อมูลที่ผู้พัฒนาแก้ไขได้ */
+export type GamePatch = Partial<
+  Pick<Game, "title" | "price" | "genre" | "description" | "coverUrl" | "screenshots" | "videoUrl" | "sizeMB">
+>;
 
 interface ShopValue {
   /* ---- คลังข้อมูลเกม ---- */
@@ -45,8 +64,16 @@ interface ShopValue {
   gamesByDev: (dev: string) => Game[];
   findGame: (slug: string) => Game | undefined;
   submitGame: (draft: NewGameDraft, dev: string) => Game;
+  updateGame: (id: string, patch: GamePatch) => void;
+  deleteGame: (id: string) => void;
   approveGame: (id: string) => void;
   rejectGame: (id: string, note?: string) => void;
+
+  /* ---- รีวิว ---- */
+  reviews: Review[];
+  reviewsFor: (gameId: string) => Review[];
+  addReview: (gameId: string, stars: number, text: string, author: string, initial: string) => void;
+  replyReview: (reviewId: string, studio: string, text: string) => void;
 
   /* ---- ตะกร้า ---- */
   items: string[];
@@ -95,6 +122,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const [library, setLibrary] = useState<LibraryEntry[]>([]);
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [orderSeq, setOrderSeq] = useState(24118);
+  const [reviews, setReviews] = useState<Review[]>(SEED_REVIEWS);
 
   /* ---------- คลังข้อมูลเกม ---------- */
 
@@ -120,6 +148,8 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       color: COLORS[i],
       accent: ACCENTS[i],
       coverUrl: draft.coverUrl ?? null,
+      screenshots: draft.screenshots ?? [],
+      videoUrl: draft.videoUrl ?? null,
       status: "PENDING",
       sizeMB: draft.sizeMB,
       releaseDate: "—",
@@ -129,6 +159,30 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     };
     setGames((prev) => [game, ...prev]);
     return game;
+  }, []);
+
+  /** ผู้พัฒนาแก้ไขเกมของตัวเอง — ถ้าเคยถูกปฏิเสธ จะกลับเข้าคิวรอตรวจสอบใหม่ */
+  const updateGame = useCallback((id: string, patch: GamePatch) => {
+    setGames((prev) =>
+      prev.map((g) =>
+        g.id === id
+          ? {
+              ...g,
+              ...patch,
+              ...(g.status === "REJECTED"
+                ? { status: "PENDING" as const, rejectNote: undefined, submittedAt: today() }
+                : {}),
+            }
+          : g
+      )
+    );
+  }, []);
+
+  const deleteGame = useCallback((id: string) => {
+    setGames((prev) => prev.filter((g) => g.id !== id));
+    setItems((prev) => prev.filter((x) => x !== id));
+    setWishlist((prev) => prev.filter((x) => x !== id));
+    setReviews((prev) => prev.filter((r) => r.gameId !== id));
   }, []);
 
   const approveGame = useCallback((id: string) => {
@@ -144,6 +198,38 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const rejectGame = useCallback((id: string, note = "ไม่ผ่านเกณฑ์การตรวจสอบ") => {
     setGames((prev) =>
       prev.map((g) => (g.id === id ? { ...g, status: "REJECTED" as const, rejectNote: note } : g))
+    );
+  }, []);
+
+  /* ---------- รีวิว ---------- */
+
+  const reviewsFor = useCallback(
+    (gameId: string) => reviews.filter((r) => r.gameId === gameId),
+    [reviews]
+  );
+
+  const addReview = useCallback(
+    (gameId: string, stars: number, text: string, author: string, initial: string) => {
+      setReviews((prev) => [
+        {
+          id: `rv${Date.now()}`,
+          gameId,
+          author,
+          initial,
+          avatarColor: "#3B5A9A",
+          stars,
+          text,
+          meta: "เพิ่งเขียนเมื่อสักครู่",
+        },
+        ...prev,
+      ]);
+    },
+    []
+  );
+
+  const replyReview = useCallback((reviewId: string, studio: string, text: string) => {
+    setReviews((prev) =>
+      prev.map((r) => (r.id === reviewId ? { ...r, devReply: { studio, text } } : r))
     );
   }, []);
 
@@ -220,14 +306,16 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ShopValue>(
     () => ({
       games, approvedGames, pendingGames, gamesByDev, findGame,
-      submitGame, approveGame, rejectGame,
+      submitGame, updateGame, deleteGame, approveGame, rejectGame,
+      reviews, reviewsFor, addReview, replyReview,
       items, count: items.length, has, toggle, add, remove, clear,
       wishlist, inWishlist, toggleWishlist,
       library, orders, owns, checkout, markDownloaded,
     }),
     [
       games, approvedGames, pendingGames, gamesByDev, findGame,
-      submitGame, approveGame, rejectGame,
+      submitGame, updateGame, deleteGame, approveGame, rejectGame,
+      reviews, reviewsFor, addReview, replyReview,
       items, has, toggle, add, remove, clear,
       wishlist, inWishlist, toggleWishlist,
       library, orders, owns, checkout, markDownloaded,
