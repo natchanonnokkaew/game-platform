@@ -17,12 +17,12 @@ export default function GameDetailPage() {
   const game = GAMES.find((g) => g.slug === slug) ?? GAMES[0];
 
   const [shot, setShot] = useState(0);
-  const [wish, setWish] = useState(false);
   const [stars, setStars] = useState(0);
   const cart = useCart();
 
   const current = SCREENSHOTS[shot];
   const inCart = cart.has(game.id);
+  const wish = cart.inWishlist(game.id);
 
   return (
     <>
@@ -313,7 +313,11 @@ export default function GameDetailPage() {
             <span style={{ fontFamily: "var(--font-head)", fontSize: 40, fontWeight: 600, lineHeight: 1 }}>
               ฿{game.price}
             </span>
-            <Link to="/library" className="btn btn--primary btn--lg btn--block">
+            <Link
+              to="/cart"
+              className="btn btn--primary btn--lg btn--block"
+              onClick={() => cart.add(game.id)}
+            >
               ซื้อเลย
             </Link>
             <button
@@ -327,7 +331,7 @@ export default function GameDetailPage() {
               type="button"
               className="btn btn--block"
               aria-pressed={wish}
-              onClick={() => setWish((w) => !w)}
+              onClick={() => cart.toggleWishlist(game.id)}
               style={{ background: "var(--surface-input)", color: "var(--text)", height: 44 }}
             >
               <span style={{ color: "#FF8FA3", display: "flex" }}>

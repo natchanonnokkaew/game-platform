@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import {
   COMMUNITY_RULES,
   GAMES,
@@ -14,6 +15,11 @@ import { ChatIcon, HeartIcon, ShareIcon } from "../components/icons";
 
 const SORTS = ["ล่าสุด", "ยอดนิยม", "ที่ติดตาม"] as const;
 type Sort = (typeof SORTS)[number];
+
+/** หา slug ของเกมจากชื่อ เพื่อลิงก์ไปหน้ารายละเอียดเกม */
+function gameSlug(title: string) {
+  return GAMES.find((g) => g.title === title)?.slug;
+}
 
 export default function CommunityPage() {
   const [posts, setPosts] = useState<Post[]>(POSTS);
@@ -102,7 +108,9 @@ export default function CommunityPage() {
               {PROFILE.initial}
             </span>
             <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-              <b>{PROFILE.name}</b>
+              <Link to="/profile" style={{ color: "var(--text)", fontWeight: 700, textDecoration: "none" }}>
+                {PROFILE.name}
+              </Link>
               <span className="muted" style={{ fontSize: 13 }}>
                 {PROFILE.handle}
               </span>
@@ -300,9 +308,18 @@ export default function CommunityPage() {
                   {p.initial}
                 </span>
                 <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                  <b>{p.author}</b>
+                  <Link to="/profile" style={{ color: "var(--text)", fontWeight: 700, textDecoration: "none" }}>
+                    {p.author}
+                  </Link>
                   <span className="muted" style={{ fontSize: 13 }}>
-                    {p.game} · {p.time}
+                    {gameSlug(p.game) ? (
+                      <Link to={`/games/${gameSlug(p.game)}`} style={{ color: "var(--text-muted)" }}>
+                        {p.game}
+                      </Link>
+                    ) : (
+                      p.game
+                    )}{" "}
+                    · {p.time}
                   </span>
                 </span>
                 <span className="grow" />

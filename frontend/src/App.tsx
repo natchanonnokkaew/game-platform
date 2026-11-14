@@ -8,8 +8,11 @@ import LibraryPage from "./pages/LibraryPage";
 import CommunityPage from "./pages/CommunityPage";
 import ProfilePage from "./pages/ProfilePage";
 import EditProfilePage from "./pages/EditProfilePage";
+import CartPage from "./pages/CartPage";
+import WishlistPage from "./pages/WishlistPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import DevDashboardPage from "./pages/DevDashboardPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 
@@ -35,6 +38,8 @@ export default function App() {
         <Route element={<SiteLayout />}>
           <Route path="/" element={<StorePage />} />
           <Route path="/games/:slug" element={<GameDetailPage />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/wishlist" element={<WishlistPage />} />
           <Route path="/library" element={<LibraryPage />} />
           <Route path="/community" element={<CommunityPage />} />
           <Route path="/profile" element={<ProfilePage />} />
@@ -45,6 +50,7 @@ export default function App() {
         {/* หน้าเข้าสู่ระบบ — เต็มจอ ไม่มีแถบนำทางหลัก */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
         {/* แดชบอร์ด — ใช้แถบข้างแทน */}
         <Route path="/developer" element={<DevDashboardPage />} />

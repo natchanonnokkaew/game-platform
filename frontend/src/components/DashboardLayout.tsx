@@ -40,6 +40,9 @@ export default function DashboardLayout({
         </Link>
 
         <nav aria-label="เมนูแดชบอร์ด" className="sidebar__nav">
+          <Link to="/" className="sidebar__link" style={{ color: "var(--text-muted)" }}>
+            ← กลับหน้าร้านค้า
+          </Link>
           {items.map((item, i) => (
             <button
               key={item.label}
@@ -72,7 +75,12 @@ export default function DashboardLayout({
           ))}
         </nav>
 
-        <div style={{ marginTop: "auto" }}>{account}</div>
+        <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
+          {account}
+          <Link to="/login" className="sidebar__link" style={{ color: "var(--text-muted)" }}>
+            ออกจากระบบ
+          </Link>
+        </div>
       </aside>
 
       <main className="dash__main">{children}</main>
