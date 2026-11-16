@@ -1052,6 +1052,23 @@ html {
   color: var(--text);
 }
 
+/* ---------- ข้อความแจ้งผลการทำงาน ---------- */
+
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 80;
+  max-width: 420px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: var(--ok-bg);
+  border: 1px solid #2f6b44;
+  color: var(--text);
+  font-size: 15px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
 /* ---------- ฟีเจอร์ที่ยังไม่เปิดใช้ (นอกขอบเขต 30%) ---------- */
 
 .is-soon {

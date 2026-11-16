@@ -12,7 +12,10 @@ export default function GameDetailPage() {
 
   const [shot, setShot] = useState(0);
 
-  if (!game) {
+  /** เกมที่ยังไม่อนุมัติ / ถูกนำออกจากร้าน / ผู้พัฒนาถูกระงับ เปิดดูได้เฉพาะคนที่มีเกมนี้ในคลังแล้ว */
+  const visible = !!game && (shop.approvedGames.some((g) => g.id === game.id) || shop.owns(game.id));
+
+  if (!game || !visible) {
     return (
       <div className="stack" style={{ gap: 12 }}>
         <h1 className="page-title">ไม่พบเกมนี้</h1>

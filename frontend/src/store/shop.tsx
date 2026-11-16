@@ -1,5 +1,18 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
-import { GAME_REVIEWS, SEED_GAMES, type Game, type GameReview, type OrderRow } from "../data/mock";
+import {
+  DEV_REQUESTS,
+  GAME_REVIEWS,
+  GENRES,
+  PROFILE,
+  SEED_GAMES,
+  SEED_ORDERS,
+  SEED_USERS,
+  type DevRequest,
+  type Game,
+  type GameReview,
+  type OrderRow,
+  type PlatformUser,
+} from "../data/mock";
 
 /**
  * สถานะกลางของแพลตฟอร์ม — ใช้ร่วมกันทุกหน้า
@@ -91,10 +104,33 @@ interface ShopValue {
 
   /* ---- คลังเกมและคำสั่งซื้อ ---- */
   library: LibraryEntry[];
+  /** คำสั่งซื้อทั้งแพลตฟอร์ม (ผู้ดูแลระบบเห็นทั้งหมด) */
   orders: OrderRow[];
+  /** คำสั่งซื้อของผู้ใช้ที่ล็อกอินอยู่ */
+  myOrders: OrderRow[];
   owns: (gameId: string) => boolean;
   checkout: () => PaidOrder | null;
   markDownloaded: (gameId: string) => void;
+  /** PAID → FULFILLED */
+  fulfillOrder: (id: string) => void;
+  /** PENDING → CANCELLED */
+  cancelOrder: (id: string) => void;
+  /** คืนเงิน: เพิกถอนสิทธิ์ในคลังเกมของผู้ซื้อ และหักยอดขายของผู้พัฒนา */
+  refundOrder: (id: string) => void;
+
+  /* ---- ผู้ใช้และผู้พัฒนา (ผู้ดูแลระบบ) ---- */
+  users: PlatformUser[];
+  setUserStatus: (id: string, status: PlatformUser["status"]) => void;
+  /** บัญชีนี้ถูกระงับอยู่หรือไม่ (ค้นจากชื่อ) */
+  isSuspended: (name: string) => boolean;
+  devRequests: DevRequest[];
+  approveDevRequest: (id: string) => void;
+  rejectDevRequest: (id: string) => void;
+
+  /* ---- หมวดหมู่เกม ---- */
+  categories: string[];
+  addCategory: (name: string) => boolean;
+  removeCategory: (name: string) => boolean;
 }
 
 const ShopContext = createContext<ShopValue | null>(null);
@@ -120,14 +156,83 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<string[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [library, setLibrary] = useState<LibraryEntry[]>([]);
-  const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [orders, setOrders] = useState<OrderRow[]>(SEED_ORDERS);
+  const [users, setUsers] = useState<PlatformUser[]>(SEED_USERS);
+  const [devRequests, setDevRequests] = useState<DevRequest[]>(DEV_REQUESTS);
+  const [categories, setCategories] = useState<string[]>(GENRES.filter((g) => g !== "ทั้งหมด"));
+
+  /* ---------- ผู้ใช้ ---------- */
+
+  const suspendedNames = useMemo(
+    () => new Set(users.filter((u) => u.status === "SUSPENDED").map((u) => u.name)),
+    [users]
+  );
+  const isSuspended = useCallback((name: string) => suspendedNames.has(name), [suspendedNames]);
+
+  const setUserStatus = useCallback((id: string, status: PlatformUser["status"]) => {
+    setUsers((prev) => prev.map((u) => (u.id === id && u.role !== "ADMIN" ? { ...u, status } : u)));
+  }, []);
+
+  const approveDevRequest = useCallback(
+    (id: string) => {
+      const req = devRequests.find((r) => r.id === id);
+      if (!req) return;
+      setDevRequests((prev) => prev.filter((r) => r.id !== id));
+      setUsers((prev) =>
+        prev.some((u) => u.name === req.name)
+          ? prev.map((u) => (u.name === req.name ? { ...u, role: "DEVELOPER" as const } : u))
+          : [
+              ...prev,
+              {
+                id: `d${Date.now()}`,
+                name: req.name,
+                email: req.email,
+                role: "DEVELOPER" as const,
+                joined: today(),
+                status: "ACTIVE" as const,
+              },
+            ]
+      );
+    },
+    [devRequests]
+  );
+
+  const rejectDevRequest = useCallback((id: string) => {
+    setDevRequests((prev) => prev.filter((r) => r.id !== id));
+  }, []);
+
+  /* ---------- หมวดหมู่ ---------- */
+
+  const addCategory = useCallback(
+    (name: string) => {
+      const n = name.trim();
+      if (!n || n === "ทั้งหมด" || categories.includes(n)) return false;
+      setCategories((prev) => [...prev, n]);
+      return true;
+    },
+    [categories]
+  );
   const [orderSeq, setOrderSeq] = useState(24118);
   const [reviews, setReviews] = useState<Review[]>(SEED_REVIEWS);
 
   /* ---------- คลังข้อมูลเกม ---------- */
 
-  const approvedGames = useMemo(() => games.filter((g) => g.status === "APPROVED"), [games]);
+  /** เกมที่ขายอยู่หน้าร้าน = อนุมัติแล้ว และบัญชีผู้พัฒนาไม่ถูกระงับ */
+  const approvedGames = useMemo(
+    () => games.filter((g) => g.status === "APPROVED" && !suspendedNames.has(g.dev)),
+    [games, suspendedNames]
+  );
   const pendingGames = useMemo(() => games.filter((g) => g.status === "PENDING"), [games]);
+
+  /** ลบได้เฉพาะหมวดที่ไม่มีเกมใช้อยู่ */
+  const removeCategory = useCallback(
+    (name: string) => {
+      if (games.some((g) => g.genre === name)) return false;
+      setCategories((prev) => prev.filter((c) => c !== name));
+      return true;
+    },
+    [games]
+  );
 
   const gamesByDev = useCallback((dev: string) => games.filter((g) => g.dev === dev), [games]);
   const findGame = useCallback((slug: string) => games.find((g) => g.slug === slug), [games]);
@@ -258,7 +363,8 @@ export function ShopProvider({ children }: { children: ReactNode }) {
 
   /** จำลองการชำระเงิน: ออก License Key ให้ทุกเกมในตะกร้า แล้วย้ายเข้าคลัง */
   const checkout = useCallback((): PaidOrder | null => {
-    const buying = games.filter((g) => items.includes(g.id) && !library.some((e) => e.gameId === g.id));
+    if (suspendedNames.has(PROFILE.name)) return null;
+    const buying = approvedGames.filter((g) => items.includes(g.id) && !library.some((e) => e.gameId === g.id));
     if (buying.length === 0) return null;
 
     const id = `#ORD-${orderSeq}`;
@@ -281,9 +387,12 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       {
         id,
         date,
+        buyer: PROFILE.name,
         items: buying.map((g) => g.title).join(", "),
-        total: `฿${total.toLocaleString()}`,
+        gameIds: buying.map((g) => g.id),
+        total,
         status: "FULFILLED" as const,
+        ref: `pay_mock_${orderSeq}${Math.random().toString(16).slice(2, 6)}…`,
       },
       ...prev,
     ]);
@@ -295,7 +404,38 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     setWishlist((prev) => prev.filter((x) => !buying.some((b) => b.id === x)));
 
     return { id, titles: buying.map((g) => g.title), total };
-  }, [games, items, library, orderSeq]);
+  }, [approvedGames, items, library, orderSeq, suspendedNames]);
+
+  const myOrders = useMemo(() => orders.filter((o) => o.buyer === PROFILE.name), [orders]);
+
+  const setOrderStatus = (id: string, from: OrderRow["status"][], to: OrderRow["status"]) => {
+    setOrders((prev) => prev.map((o) => (o.id === id && from.includes(o.status) ? { ...o, status: to } : o)));
+  };
+
+  const fulfillOrder = useCallback((id: string) => {
+    setOrderStatus(id, ["PAID"], "FULFILLED");
+  }, []);
+
+  const cancelOrder = useCallback((id: string) => {
+    setOrderStatus(id, ["PENDING"], "CANCELLED");
+  }, []);
+
+  const refundOrder = useCallback(
+    (id: string) => {
+      const order = orders.find((o) => o.id === id);
+      if (!order || (order.status !== "FULFILLED" && order.status !== "PAID")) return;
+      setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: "REFUNDED" as const } : o)));
+      // เพิกถอนสิทธิ์ (License Key) ที่ออกให้จากคำสั่งซื้อนี้
+      setLibrary((prev) => prev.filter((e) => e.orderId !== id));
+      // หักยอดขายของผู้พัฒนาออก
+      setGames((prev) =>
+        prev.map((g) =>
+          order.gameIds.includes(g.id) ? { ...g, unitsSold: Math.max(0, g.unitsSold - 1) } : g
+        )
+      );
+    },
+    [orders]
+  );
 
   const markDownloaded = useCallback((gameId: string) => {
     setLibrary((prev) =>
@@ -303,22 +443,32 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  /** จำนวนในตะกร้า นับเฉพาะเกมที่ยังขายอยู่และยังไม่มีในคลัง */
+  const cartCount = useMemo(
+    () => items.filter((id) => approvedGames.some((g) => g.id === id) && !library.some((e) => e.gameId === id)).length,
+    [items, approvedGames, library]
+  );
+
   const value = useMemo<ShopValue>(
     () => ({
       games, approvedGames, pendingGames, gamesByDev, findGame,
       submitGame, updateGame, deleteGame, approveGame, rejectGame,
       reviews, reviewsFor, addReview, replyReview,
-      items, count: items.length, has, toggle, add, remove, clear,
+      items, count: cartCount, has, toggle, add, remove, clear,
       wishlist, inWishlist, toggleWishlist,
-      library, orders, owns, checkout, markDownloaded,
+      library, orders, myOrders, owns, checkout, markDownloaded, fulfillOrder, cancelOrder, refundOrder,
+      users, setUserStatus, isSuspended, devRequests, approveDevRequest, rejectDevRequest,
+      categories, addCategory, removeCategory,
     }),
     [
       games, approvedGames, pendingGames, gamesByDev, findGame,
       submitGame, updateGame, deleteGame, approveGame, rejectGame,
       reviews, reviewsFor, addReview, replyReview,
-      items, has, toggle, add, remove, clear,
+      items, cartCount, has, toggle, add, remove, clear,
       wishlist, inWishlist, toggleWishlist,
-      library, orders, owns, checkout, markDownloaded,
+      library, orders, myOrders, owns, checkout, markDownloaded, fulfillOrder, cancelOrder, refundOrder,
+      users, setUserStatus, isSuspended, devRequests, approveDevRequest, rejectDevRequest,
+      categories, addCategory, removeCategory,
     ]
   );
 

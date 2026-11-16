@@ -289,7 +289,7 @@ export default function LibraryPage() {
         <h2 id="orders-title" className="section-title">
           ประวัติการสั่งซื้อ
         </h2>
-        {shop.orders.length === 0 ? (
+        {shop.myOrders.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>
             ยังไม่มีคำสั่งซื้อ
           </p>
@@ -308,12 +308,12 @@ export default function LibraryPage() {
                 </tr>
               </thead>
               <tbody>
-                {shop.orders.map((o) => (
+                {shop.myOrders.map((o) => (
                   <tr key={o.id}>
                     <td className="mono">{o.id}</td>
                     <td>{o.date}</td>
                     <td>{o.items}</td>
-                    <td className="num">{o.total}</td>
+                    <td className="num">฿{o.total.toLocaleString()}</td>
                     <td>
                       <span className={`pill ${ORDER_STATUS[o.status].tone}`}>
                         {ORDER_STATUS[o.status].label}

@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import GameCard from "../components/GameCard";
-import { GENRES } from "../data/mock";
 import { useShop } from "../store/shop";
 
 type PriceBand = "all" | "lt200" | "200to400" | "gt400";
@@ -137,7 +136,7 @@ export default function StorePage() {
           ประเภทเกม
         </h2>
         <div className="chip-row">
-          {GENRES.map((name) => (
+          {["ทั้งหมด", ...shop.categories].map((name) => (
             <button
               key={name}
               type="button"

@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout, { Kpi, type SidebarItem } from "../components/DashboardLayout";
-import { CURRENT_DEV, GENRES, type Game } from "../data/mock";
+import { CURRENT_DEV, type Game } from "../data/mock";
 import GameEditor from "../components/GameEditor";
 import {
   ChartIcon,
@@ -52,6 +52,7 @@ export default function DevDashboardPage() {
   const [submitted, setSubmitted] = useState<string | null>(null);
 
   const myGames = shop.gamesByDev(CURRENT_DEV);
+  const suspended = shop.isSuspended(CURRENT_DEV);
   const approved = myGames.filter((g) => g.status === "APPROVED");
   const pending = myGames.filter((g) => g.status === "PENDING");
   const rejected = myGames.filter((g) => g.status === "REJECTED");
@@ -92,6 +93,7 @@ export default function DevDashboardPage() {
     if (!Number.isFinite(priceNum) || priceNum < 0) return setFormError("ราคาต้องเป็นตัวเลขไม่ติดลบ");
     if (!Number.isFinite(sizeNum) || sizeNum < 0) return setFormError("ขนาดไฟล์ไม่ถูกต้อง");
     if (sizeNum > MAX_FILE_MB) return setFormError(`ไฟล์เกมต้องไม่เกิน ${MAX_FILE_MB} MB`);
+    if (suspended) return setFormError("บัญชีถูกระงับ ไม่สามารถส่งเกมใหม่ได้");
 
     // TODO: ต่อกับ POST /api/games (multipart พร้อมไฟล์เกมจริง)
     const game = shop.submitGame(
@@ -114,8 +116,8 @@ export default function DevDashboardPage() {
       activeIndex={0}
       account={
         <div className="panel" id="account" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 6 }}>
-          <span className="pill pill--ok" style={{ alignSelf: "flex-start" }}>
-            อนุมัติแล้ว
+          <span className={suspended ? "pill pill--danger" : "pill pill--ok"} style={{ alignSelf: "flex-start" }}>
+            {suspended ? "บัญชีถูกระงับ" : "อนุมัติแล้ว"}
           </span>
           <span style={{ fontSize: 14 }}>{CURRENT_DEV}</span>
           <span className="muted" style={{ fontSize: 12, wordBreak: "break-all" }}>
@@ -136,6 +138,15 @@ export default function DevDashboardPage() {
           อัปโหลดเกมใหม่
         </a>
       </div>
+
+      {suspended && (
+        <div role="alert" className="alert alert--danger">
+          <span>
+            <b>บัญชีผู้พัฒนานี้ถูกผู้ดูแลระบบระงับ</b> — เกมทั้งหมดถูกซ่อนจากหน้าร้านค้าชั่วคราว และส่งเกมใหม่ไม่ได้
+            จนกว่าจะยกเลิกการระงับ
+          </span>
+        </div>
+      )}
 
       <div className="kpi-grid">
         <Kpi label="รายได้สะสม" value={`฿${revenue.toLocaleString()}`} delta="คิดจากยอดขายจริงของเกมที่อนุมัติแล้ว" deltaTone="var(--text-muted)" />
@@ -304,7 +315,7 @@ export default function DevDashboardPage() {
               <div className="field" style={{ flex: "1 1 140px" }}>
                 <label htmlFor="up-genre">ประเภท</label>
                 <select id="up-genre" value={genre} onChange={(e) => setGenre(e.target.value)}>
-                  {GENRES.filter((g) => g !== "ทั้งหมด").map((g) => (
+                  {shop.categories.map((g) => (
                     <option key={g}>{g}</option>
                   ))}
                 </select>
@@ -419,7 +430,7 @@ export default function DevDashboardPage() {
               </p>
             )}
 
-            <button type="submit" className="btn btn--primary btn--lg">
+            <button type="submit" className="btn btn--primary btn--lg" disabled={suspended}>
               ส่งให้ผู้ดูแลระบบตรวจสอบ
             </button>
           </form>

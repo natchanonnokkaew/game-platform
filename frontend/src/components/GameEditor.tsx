@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { GENRES, type Game } from "../data/mock";
+import type { Game } from "../data/mock";
 import { UploadIcon } from "./icons";
 import { useShop, type GamePatch } from "../store/shop";
 
@@ -104,7 +104,7 @@ export default function GameEditor({ game, onClose }: { game: Game; onClose: () 
             <div className="field" style={{ flex: "1 1 140px" }}>
               <label htmlFor="ed-genre">ประเภท</label>
               <select id="ed-genre" value={genre} onChange={(e) => setGenre(e.target.value)}>
-                {GENRES.filter((g) => g !== "ทั้งหมด").map((g) => (
+                {shop.categories.map((g) => (
                   <option key={g}>{g}</option>
                 ))}
               </select>

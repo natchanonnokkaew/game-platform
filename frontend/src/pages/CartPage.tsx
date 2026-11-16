@@ -7,7 +7,8 @@ export default function CartPage() {
   const shop = useShop();
   const navigate = useNavigate();
 
-  const items = shop.games.filter((g) => shop.has(g.id) && !shop.owns(g.id));
+  /** เฉพาะเกมที่ยังขายอยู่ — ถ้าผู้ดูแลนำเกมออกจากร้าน เกมนั้นจะหายจากตะกร้า */
+  const items = shop.approvedGames.filter((g) => shop.has(g.id) && !shop.owns(g.id));
   const total = items.reduce((sum, g) => sum + g.price, 0);
 
   return (

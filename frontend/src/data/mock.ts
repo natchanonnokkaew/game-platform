@@ -115,18 +115,28 @@ export const SEED_GAMES: Game[] = [
 
 /* ---------- คำสั่งซื้อ ---------- */
 
+export type OrderStatus = "PENDING" | "PAID" | "FULFILLED" | "REFUNDED" | "CANCELLED";
+
 export interface OrderRow {
   id: string;
   date: string;
+  /** ชื่อผู้ซื้อ (ตรงกับ PlatformUser.name) */
+  buyer: string;
+  /** ชื่อเกมในคำสั่งซื้อ คั่นด้วยจุลภาค */
   items: string;
-  total: string;
-  status: "FULFILLED" | "REFUNDED" | "PENDING";
+  gameIds: string[];
+  total: number;
+  status: OrderStatus;
+  /** อ้างอิงการชำระเงินจากระบบจำลอง */
+  ref: string;
 }
 
-export const ORDER_STATUS: Record<OrderRow["status"], { label: string; tone: string }> = {
+export const ORDER_STATUS: Record<OrderStatus, { label: string; tone: string }> = {
+  PENDING: { label: "PENDING · รอชำระเงิน", tone: "pill--warn" },
+  PAID: { label: "PAID · รอส่งมอบสิทธิ์", tone: "pill--info" },
   FULFILLED: { label: "FULFILLED · ส่งมอบสิทธิ์แล้ว", tone: "pill--ok" },
   REFUNDED: { label: "REFUNDED · คืนเงินแล้ว", tone: "pill--danger" },
-  PENDING: { label: "PENDING · รอชำระเงิน", tone: "pill--warn" },
+  CANCELLED: { label: "CANCELLED · ยกเลิกแล้ว", tone: "pill--danger" },
 };
 
 /* ---------- รายละเอียดเกม ---------- */
@@ -207,16 +217,26 @@ export const PENDING_DEV_REVIEWS = [
 
 /* ---------- ผู้ดูแลระบบ ---------- */
 
-export const DEV_REQUESTS = [
-  { name: "Kinnaree Works", initial: "K", sent: "ส่งคำขอ 9 พ.ย. 2569" },
-  { name: "Mango Byte", initial: "M", sent: "ส่งคำขอ 8 พ.ย. 2569" },
+export interface DevRequest {
+  id: string;
+  name: string;
+  email: string;
+  initial: string;
+  sent: string;
+  note: string;
+}
+
+export const DEV_REQUESTS: DevRequest[] = [
+  { id: "dr1", name: "Kinnaree Works", email: "hello@kinnaree.example", initial: "K", sent: "9 พ.ย. 2569", note: "สตูดิโอ 3 คน ทำเกมปริศนาแนววรรณคดีไทย" },
+  { id: "dr2", name: "Mango Byte", email: "team@mangobyte.example", initial: "M", sent: "8 พ.ย. 2569", note: "นักพัฒนาอิสระ เกมแคชวลบนมือถือและพีซี" },
 ];
 
-export const PLATFORM_ORDERS = [
-  { id: "#ORD-24116", buyer: "mint.pp", items: "Lotus Knight", total: "฿299", status: "PAID", ref: "pay_mock_77c1…" },
-  { id: "#ORD-24115", buyer: "ploy_s", items: "Pixel Krathong, Star Courier", total: "฿388", status: "PENDING", ref: "รอ webhook" },
-  { id: "#ORD-24109", buyer: "tonkla_99", items: "Iron Monsoon", total: "฿399", status: "REFUNDED", ref: "pay_mock_19de…" },
-  { id: "#ORD-24102", buyer: "beam.k", items: "Night Shift BKK", total: "฿229", status: "CANCELLED", ref: "—" },
+/** คำสั่งซื้อเดิมของผู้ใช้อื่นบนแพลตฟอร์ม */
+export const SEED_ORDERS: OrderRow[] = [
+  { id: "#ORD-24116", date: "13 พ.ย. 2569", buyer: "mint.pp", items: "Lotus Knight", gameIds: ["g9"], total: 299, status: "PAID", ref: "pay_mock_77c1…" },
+  { id: "#ORD-24115", date: "13 พ.ย. 2569", buyer: "ploy_s", items: "Pixel Krathong, Star Courier", gameIds: ["g11", "g5"], total: 388, status: "PENDING", ref: "รอ webhook" },
+  { id: "#ORD-24109", date: "10 พ.ย. 2569", buyer: "tonkla_99", items: "Iron Monsoon", gameIds: ["g7"], total: 399, status: "REFUNDED", ref: "pay_mock_19de…" },
+  { id: "#ORD-24102", date: "6 พ.ย. 2569", buyer: "beam.k", items: "Night Shift BKK", gameIds: ["g10"], total: 229, status: "CANCELLED", ref: "—" },
 ];
 
 /* ---------- โปรไฟล์ ---------- */
@@ -230,6 +250,37 @@ export const PROFILE = {
   tags: ["RPG", "ผจญภัย", "แข่งรถ"],
   memberSince: "สมาชิกตั้งแต่ ส.ค. 2569",
 };
+
+/* ---------- บัญชีผู้ใช้บนแพลตฟอร์ม (ผู้ดูแลระบบจัดการได้) ---------- */
+
+export type Role = "PLAYER" | "DEVELOPER" | "ADMIN";
+
+export interface PlatformUser {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  joined: string;
+  status: "ACTIVE" | "SUSPENDED";
+}
+
+export const SEED_USERS: PlatformUser[] = [
+  { id: "u-me", name: "ณัฐชนน นกแก้ว", email: "natchanon@example.com", role: "PLAYER", joined: "ส.ค. 2569", status: "ACTIVE" },
+  { id: "u2", name: "mint.pp", email: "mint@example.com", role: "PLAYER", joined: "ก.ย. 2569", status: "ACTIVE" },
+  { id: "u3", name: "ploy_s", email: "ploy@example.com", role: "PLAYER", joined: "ก.ย. 2569", status: "ACTIVE" },
+  { id: "u4", name: "tonkla_99", email: "tonkla@example.com", role: "PLAYER", joined: "ต.ค. 2569", status: "ACTIVE" },
+  { id: "u5", name: "beam.k", email: "beam@example.com", role: "PLAYER", joined: "ต.ค. 2569", status: "ACTIVE" },
+  { id: "d1", name: "Lotus Forge", email: "dev@lotusforge.example", role: "DEVELOPER", joined: "มิ.ย. 2569", status: "ACTIVE" },
+  { id: "d2", name: "Volt Pixel", email: "dev@voltpixel.example", role: "DEVELOPER", joined: "มิ.ย. 2569", status: "ACTIVE" },
+  { id: "d3", name: "Moth & Ember", email: "dev@mothember.example", role: "DEVELOPER", joined: "พ.ค. 2569", status: "ACTIVE" },
+  { id: "d4", name: "Rice Bowl Games", email: "dev@ricebowl.example", role: "DEVELOPER", joined: "พ.ค. 2569", status: "ACTIVE" },
+  { id: "d5", name: "Orbit Nine", email: "dev@orbitnine.example", role: "DEVELOPER", joined: "เม.ย. 2569", status: "ACTIVE" },
+  { id: "d6", name: "River Lab", email: "dev@riverlab.example", role: "DEVELOPER", joined: "ม.ค. 2569", status: "ACTIVE" },
+  { id: "d7", name: "Storm Anvil", email: "dev@stormanvil.example", role: "DEVELOPER", joined: "ส.ค. 2569", status: "ACTIVE" },
+  { id: "d8", name: "Sprout Studio", email: "dev@sprout.example", role: "DEVELOPER", joined: "มี.ค. 2569", status: "ACTIVE" },
+  { id: "d9", name: "Tuk Tuk Interactive", email: "dev@tuktuk.example", role: "DEVELOPER", joined: "ม.ค. 2569", status: "ACTIVE" },
+  { id: "a1", name: "admin.haftstar", email: "admin@haftstar.example", role: "ADMIN", joined: "ม.ค. 2569", status: "ACTIVE" },
+];
 
 export const ACTIVITY = [
   { text: "โพสต์ “วิธีปลดล็อกตอนจบที่ 3” ในคอมมูนิตี้", time: "2 ชั่วโมงที่แล้ว", color: "#C8F04A" },

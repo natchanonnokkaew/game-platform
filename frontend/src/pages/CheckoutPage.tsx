@@ -73,8 +73,10 @@ export default function CheckoutPage() {
   const shop = useShop();
   const navigate = useNavigate();
 
-  const items = shop.games.filter((g) => shop.has(g.id) && !shop.owns(g.id));
+  /** เฉพาะเกมที่ยังขายอยู่ — ถ้าผู้ดูแลนำเกมออกจากร้าน เกมนั้นจะหายจากตะกร้า */
+  const items = shop.approvedGames.filter((g) => shop.has(g.id) && !shop.owns(g.id));
   const total = items.reduce((sum, g) => sum + g.price, 0);
+  const suspended = shop.isSuspended(PROFILE.name);
 
   const [name, setName] = useState(PROFILE.name);
   const [email, setEmail] = useState(PROFILE.email);
@@ -119,6 +121,7 @@ export default function CheckoutPage() {
       if (!expIsValid(exp)) return fail("exp", "วันหมดอายุไม่ถูกต้อง (รูปแบบ MM/YY และยังไม่หมดอายุ)");
       if (!/^\d{3,4}$/.test(cvc)) return fail("cvc", "CVC ต้องเป็นตัวเลข 3–4 หลัก");
     }
+    if (suspended) return fail("form", "บัญชีของคุณถูกระงับโดยผู้ดูแลระบบ จึงชำระเงินไม่ได้");
     if (!agreed) return fail("terms", "กรุณายอมรับเงื่อนไขการซื้อเกมดิจิทัลก่อนชำระเงิน");
     return true;
   }
@@ -172,6 +175,14 @@ export default function CheckoutPage() {
         </span>
         <span>ระบบชำระเงินจำลองสำหรับทดสอบ (Mock Payment) — ไม่มีการตัดเงินจริง และระบบไม่เก็บข้อมูลบัตร</span>
       </div>
+
+      {suspended && (
+        <div role="alert" className="alert alert--danger">
+          <span>
+            <b>บัญชีของคุณถูกระงับ</b> — ไม่สามารถซื้อเกมได้ในขณะนี้ กรุณาติดต่อผู้ดูแลระบบ
+          </span>
+        </div>
+      )}
 
       <form className="checkout" onSubmit={handlePay} noValidate autoComplete="off" style={{ flexDirection: "row" }}>
         <div className="checkout__main">
@@ -325,7 +336,7 @@ export default function CheckoutPage() {
             </p>
           )}
 
-          <button type="submit" className="btn btn--primary btn--lg btn--block" disabled={paying}>
+          <button type="submit" className="btn btn--primary btn--lg btn--block" disabled={paying || suspended}>
             {paying ? "กำลังดำเนินการ…" : `ยืนยันชำระเงิน ฿${total.toLocaleString()}`}
           </button>
 
