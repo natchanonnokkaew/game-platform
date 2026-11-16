@@ -1107,6 +1107,11 @@ html {
   font-size: 16px;
 }
 
+/* ขั้นสุดท้ายไม่มีเส้นต่อ ให้กว้างเท่าเนื้อหา เส้นของขั้นอื่นจะยืดเต็มแถว */
+.step:last-child {
+  flex: none;
+}
+
 .step__dot {
   width: 32px;
   height: 32px;
@@ -1146,6 +1151,16 @@ html {
 }
 .step.is-done .step__line {
   background: var(--ok-fg);
+}
+
+.step__link {
+  color: inherit;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.step__link:hover {
+  color: #8ff0bf;
 }
 
 .checkout {

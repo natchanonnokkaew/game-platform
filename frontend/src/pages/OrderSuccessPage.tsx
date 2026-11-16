@@ -39,7 +39,7 @@ export default function OrderSuccessPage() {
 
   return (
     <>
-      <OrderSteps current={3} />
+      <OrderSteps current={4} />
 
       <section className="card success-card" aria-labelledby="ok-title">
         <span className="success-badge" aria-hidden="true">
