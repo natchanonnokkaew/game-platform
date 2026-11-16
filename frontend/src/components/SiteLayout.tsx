@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { NavLink, Link, Outlet, useNavigate, useSearchParams } from "react-router-dom";
 import { CartIcon, HeartIcon, LogoMark, SearchIcon } from "./icons";
 import { useShop } from "../store/shop";
+import { SOON } from "../lib/soon";
 
 const MENU = [
   { to: "/", label: "ร้านค้า", end: true },
   { to: "/library", label: "คลังเกม" },
-  { to: "/community", label: "คอมมูนิตี้" },
-  { to: "/profile", label: "โปรไฟล์" },
+  { to: "/community", label: "คอมมูนิตี้", soon: true },
+  { to: "/profile", label: "โปรไฟล์", soon: true },
 ];
 
 /** เมนูผู้ใช้ — ทางเข้าหน้าแดชบอร์ดและหน้าเข้าสู่ระบบ */
@@ -33,8 +34,8 @@ function UserMenu() {
   }, [open]);
 
   const items = [
-    { to: "/profile", label: "โปรไฟล์ของฉัน" },
-    { to: "/profile/edit", label: "แก้ไขโปรไฟล์" },
+    { to: "/profile", label: "โปรไฟล์ของฉัน", soon: true },
+    { to: "/profile/edit", label: "แก้ไขโปรไฟล์", soon: true },
     { to: "/library", label: "คลังเกม" },
     { divider: true as const },
     { to: "/developer", label: "แดชบอร์ดผู้พัฒนา" },
@@ -62,6 +63,17 @@ function UserMenu() {
           {items.map((item, i) =>
             "divider" in item ? (
               <span key={`d${i}`} className="user-menu__divider" />
+            ) : item.soon ? (
+              <span
+                key={item.to}
+                role="menuitem"
+                aria-disabled="true"
+                title={SOON}
+                className="user-menu__item is-soon"
+              >
+                {item.label}
+                <span className="soon-badge">เร็ว ๆ นี้</span>
+              </span>
             ) : (
               <Link
                 key={item.to}
@@ -127,24 +139,30 @@ export function Navbar() {
         </Link>
 
         <nav aria-label="เมนูหลัก" className="nav-links">
-          {MENU.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) => (isActive ? "nav-link is-active" : "nav-link")}
-            >
-              {item.label}
-            </NavLink>
-          ))}
+          {MENU.map((item) =>
+            item.soon ? (
+              <span key={item.to} className="nav-link is-soon" aria-disabled="true" title={SOON}>
+                {item.label}
+              </span>
+            ) : (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) => (isActive ? "nav-link is-active" : "nav-link")}
+              >
+                {item.label}
+              </NavLink>
+            )
+          )}
         </nav>
 
         <GlobalSearch />
 
         <div className="nav-actions">
-          <Link to="/wishlist" className="icon-btn" aria-label="รายการที่ต้องการ">
+          <button type="button" className="icon-btn is-soon" aria-disabled="true" aria-label={`รายการที่ต้องการ (${SOON})`} title={`Wishlist · ${SOON}`}>
             <HeartIcon />
-          </Link>
+          </button>
           <Link to="/cart" className="icon-btn" aria-label={`ตะกร้าสินค้า ${count} รายการ`}>
             <CartIcon />
             {count > 0 && <span className="badge-count">{count}</span>}

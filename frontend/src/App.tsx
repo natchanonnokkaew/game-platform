@@ -5,11 +5,9 @@ import { ShopProvider } from "./store/shop";
 import StorePage from "./pages/StorePage";
 import GameDetailPage from "./pages/GameDetailPage";
 import LibraryPage from "./pages/LibraryPage";
-import CommunityPage from "./pages/CommunityPage";
-import ProfilePage from "./pages/ProfilePage";
-import EditProfilePage from "./pages/EditProfilePage";
 import CartPage from "./pages/CartPage";
-import WishlistPage from "./pages/WishlistPage";
+import CheckoutPage from "./pages/CheckoutPage";
+import OrderSuccessPage from "./pages/OrderSuccessPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
@@ -39,11 +37,13 @@ export default function App() {
           <Route path="/" element={<StorePage />} />
           <Route path="/games/:slug" element={<GameDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
-          <Route path="/wishlist" element={<WishlistPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/checkout/success" element={<OrderSuccessPage />} />
           <Route path="/library" element={<LibraryPage />} />
-          <Route path="/community" element={<CommunityPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/profile/edit" element={<EditProfilePage />} />
+          {/*
+            ยังไม่เปิดใช้ในขอบเขต 30% — ไฟล์หน้าเก็บไว้แล้ว เปิดใช้ภายหลังโดยเพิ่ม Route กลับ:
+            /community (CommunityPage), /profile (ProfilePage), /profile/edit (EditProfilePage), /wishlist (WishlistPage)
+          */}
           <Route path="*" element={<NotFound />} />
         </Route>
 

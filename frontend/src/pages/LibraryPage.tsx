@@ -1,17 +1,15 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ORDER_STATUS } from "../data/mock";
-import { CheckCircleIcon, DownloadIcon } from "../components/icons";
-import { useShop, type PaidOrder } from "../store/shop";
+import { DownloadIcon } from "../components/icons";
+import { useShop } from "../store/shop";
+import { SOON } from "../lib/soon";
 
 export default function LibraryPage() {
-  const location = useLocation();
-  const paid = (location.state as { paid?: PaidOrder } | null)?.paid;
   const shop = useShop();
 
   const [sel, setSel] = useState(0);
   const [showKey, setShowKey] = useState(false);
-  const [bannerClosed, setBannerClosed] = useState(false);
   const [query, setQuery] = useState("");
   const [copied, setCopied] = useState(false);
 
@@ -36,35 +34,6 @@ export default function LibraryPage() {
 
   return (
     <>
-      {/* แบนเนอร์นี้ขึ้นเฉพาะตอนเพิ่งชำระเงินสำเร็จเท่านั้น */}
-      {paid && !bannerClosed && (
-        <div role="status" className="alert alert--ok">
-          <span style={{ flex: "none", color: "var(--ok-fg)", display: "flex" }}>
-            <CheckCircleIcon />
-          </span>
-          <span style={{ flex: 1 }}>
-            <b>ชำระเงินสำเร็จ</b> — {paid.titles.join(", ")} ถูกเพิ่มเข้าคลังเกมแล้ว คำสั่งซื้อ {paid.id}{" "}
-            ยอดรวม ฿{paid.total.toLocaleString()} สถานะ FULFILLED
-          </span>
-          <button
-            type="button"
-            onClick={() => setBannerClosed(true)}
-            aria-label="ปิดข้อความ"
-            style={{
-              width: 40,
-              height: 40,
-              border: "none",
-              background: "transparent",
-              color: "var(--text)",
-              fontSize: 22,
-              cursor: "pointer",
-            }}
-          >
-            ×
-          </button>
-        </div>
-      )}
-
       <div className="row row--between row--end">
         <div>
           <h1 className="page-title">คลังเกมของฉัน</h1>
@@ -247,9 +216,10 @@ export default function LibraryPage() {
                   <DownloadIcon />
                   ดาวน์โหลด ({current.game.sizeMB} MB)
                 </button>
-                <Link to={`/games/${current.game.slug}`} className="btn btn--secondary btn--lg">
+                <button type="button" className="btn btn--secondary btn--lg is-soon" aria-disabled="true" title={SOON}>
                   เขียนรีวิว
-                </Link>
+                  <span className="soon-badge">เร็ว ๆ นี้</span>
+                </button>
                 <span className="muted" style={{ fontSize: 13 }}>
                   {current.entry.downloadCount > 0
                     ? `ดาวน์โหลดไปแล้ว ${current.entry.downloadCount} ครั้ง · ลิงก์หมดอายุใน 5 นาที`

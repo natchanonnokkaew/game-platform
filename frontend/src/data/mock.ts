@@ -224,6 +224,7 @@ export const PLATFORM_ORDERS = [
 export const PROFILE = {
   name: "ณัฐชนน นกแก้ว",
   handle: "@natchanon",
+  email: "natchanon@example.com",
   initial: "ณ",
   bio: "สายเนื้อเรื่องและเกมอินดี้ไทย ชอบไล่เก็บตอนจบลับ ว่าง ๆ ชวนเล่น Neon Drift ได้",
   tags: ["RPG", "ผจญภัย", "แข่งรถ"],

@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
 import { LogoMark } from "./icons";
+import { SOON } from "../lib/soon";
 
 export interface SidebarItem {
   label: string;
@@ -8,6 +9,8 @@ export interface SidebarItem {
   /** id ของส่วนในหน้านี้ที่จะเลื่อนไปเมื่อคลิก */
   target: string;
   badge?: number | string;
+  /** เมนูที่ยังไม่เปิดใช้ — แสดงไว้แต่กดไม่ได้ */
+  soon?: boolean;
 }
 
 interface DashboardLayoutProps {
@@ -45,35 +48,43 @@ export default function DashboardLayout({
           <Link to="/" className="sidebar__link" style={{ color: "var(--text-muted)" }}>
             ← กลับหน้าร้านค้า
           </Link>
-          {items.map((item, i) => (
-            <a
-              key={item.label}
-              href={`#${item.target}`}
-              aria-current={i === activeIndex ? "page" : undefined}
-              className={i === activeIndex ? "sidebar__link is-active" : "sidebar__link"}
-            >
-              <span style={{ flex: "none", display: "flex" }}>{item.icon}</span>
-              <span className="grow">{item.label}</span>
-              {item.badge !== undefined && (
-                <span
-                  style={{
-                    minWidth: 22,
-                    height: 22,
-                    padding: "0 6px",
-                    borderRadius: 11,
-                    background: i === activeIndex ? "var(--accent-ink)" : "var(--surface-input)",
-                    color: i === activeIndex ? "var(--accent)" : "var(--text)",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    lineHeight: "22px",
-                    textAlign: "center",
-                  }}
-                >
-                  {item.badge}
-                </span>
-              )}
-            </a>
-          ))}
+          {items.map((item, i) =>
+            item.soon ? (
+              <span key={item.label} className="sidebar__link is-soon" aria-disabled="true" title={SOON}>
+                <span style={{ flex: "none", display: "flex" }}>{item.icon}</span>
+                <span className="grow">{item.label}</span>
+                <span className="soon-badge">เร็ว ๆ นี้</span>
+              </span>
+            ) : (
+              <a
+                key={item.label}
+                href={`#${item.target}`}
+                aria-current={i === activeIndex ? "page" : undefined}
+                className={i === activeIndex ? "sidebar__link is-active" : "sidebar__link"}
+              >
+                <span style={{ flex: "none", display: "flex" }}>{item.icon}</span>
+                <span className="grow">{item.label}</span>
+                {item.badge !== undefined && (
+                  <span
+                    style={{
+                      minWidth: 22,
+                      height: 22,
+                      padding: "0 6px",
+                      borderRadius: 11,
+                      background: i === activeIndex ? "var(--accent-ink)" : "var(--surface-input)",
+                      color: i === activeIndex ? "var(--accent)" : "var(--text)",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      lineHeight: "22px",
+                      textAlign: "center",
+                    }}
+                  >
+                    {item.badge}
+                  </span>
+                )}
+              </a>
+            )
+          )}
         </nav>
 
         <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 10 }}>

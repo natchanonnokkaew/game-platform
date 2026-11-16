@@ -18,7 +18,7 @@ const SIDEBAR: SidebarItem[] = [
   { label: "รายงานยอดขาย", icon: <ReceiptIcon />, target: "sales" },
   { label: "เกมของฉัน", icon: <GamepadIcon />, target: "my-games" },
   { label: "อัปโหลดเกม", icon: <UploadIcon />, target: "upload" },
-  { label: "รีวิวจากผู้เล่น", icon: <StarIcon />, target: "reviews" },
+  { label: "รีวิวจากผู้เล่น", icon: <StarIcon />, target: "reviews", soon: true },
   { label: "บัญชีผู้พัฒนา", icon: <UsersIcon />, target: "account" },
 ];
 
@@ -48,8 +48,6 @@ export default function DevDashboardPage() {
   const [sizeMB, setSizeMB] = useState("");
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [editing, setEditing] = useState<Game | null>(null);
-  const [replyTo, setReplyTo] = useState<string | null>(null);
-  const [replyText, setReplyText] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState<string | null>(null);
 
@@ -58,18 +56,10 @@ export default function DevDashboardPage() {
   const pending = myGames.filter((g) => g.status === "PENDING");
   const rejected = myGames.filter((g) => g.status === "REJECTED");
 
-  /** รีวิวของเกมที่ผู้พัฒนาคนนี้เป็นเจ้าของ — ที่ยังไม่ตอบขึ้นก่อน */
-  const myReviews = shop.reviews
-    .map((review) => ({ review, game: myGames.find((g) => g.id === review.gameId)! }))
-    .filter((x) => x.game)
-    .sort((a, b) => Number(!!a.review.devReply) - Number(!!b.review.devReply));
-  const awaitingReply = myReviews.filter((x) => !x.review.devReply).length;
 
   const unitsSold = approved.reduce((sum, g) => sum + g.unitsSold, 0);
   const revenue = approved.reduce((sum, g) => sum + g.unitsSold * g.price, 0);
-  const avgRating = approved.length
-    ? (approved.reduce((sum, g) => sum + g.rating, 0) / approved.length).toFixed(1)
-    : "—";
+  const withFile = myGames.filter((g) => g.sizeMB > 0).length;
 
   const { bars, total, top } = useMemo(() => {
     const all: number[] = [];
@@ -151,7 +141,12 @@ export default function DevDashboardPage() {
         <Kpi label="รายได้สะสม" value={`฿${revenue.toLocaleString()}`} delta="คิดจากยอดขายจริงของเกมที่อนุมัติแล้ว" deltaTone="var(--text-muted)" />
         <Kpi label="จำนวนที่ขายได้" value={`${unitsSold.toLocaleString()} ชุด`} delta={`จาก ${approved.length} เกม`} deltaTone="var(--text-muted)" />
         <Kpi label="เกมที่เผยแพร่" value={`${approved.length} เกม`} delta={`รอตรวจสอบ ${pending.length} · ถูกปฏิเสธ ${rejected.length}`} deltaTone="var(--text-muted)" />
-        <Kpi label="คะแนนรีวิวเฉลี่ย" value={`★ ${avgRating}`} delta={`รอการตอบกลับ ${awaitingReply} รีวิว`} deltaTone="var(--text-muted)" />
+        <Kpi
+          label="เกมที่มีไฟล์พร้อมขาย"
+          value={`${withFile}/${myGames.length} เกม`}
+          delta={withFile === myGames.length ? "ทุกเกมมีไฟล์แล้ว" : `ยังไม่มีไฟล์ ${myGames.length - withFile} เกม`}
+          deltaTone={withFile === myGames.length ? "var(--ok-fg)" : "var(--warn-fg)"}
+        />
       </div>
 
       {/* ---------- กราฟยอดขาย ---------- */}
@@ -434,101 +429,18 @@ export default function DevDashboardPage() {
           </p>
         </section>
 
-        {/* ---------- รีวิวที่รอการตอบกลับ ---------- */}
+        {/* ---------- รีวิวจากผู้เล่น — ยังไม่เปิดใช้ในขอบเขต 30% ---------- */}
         <section
           id="reviews"
           className="card card--pad"
-          style={{ flex: "1 1 320px", display: "flex", flexDirection: "column", gap: 14 }}
+          style={{ flex: "1 1 320px", display: "flex", flexDirection: "column", gap: 10 }}
         >
-          <h2 style={{ fontSize: 18, fontWeight: 600 }}>รีวิวจากผู้เล่น</h2>
-
-          {myReviews.length === 0 && (
-            <p className="muted" style={{ margin: 0, fontSize: 14 }}>
-              ยังไม่มีรีวิวสำหรับเกมของคุณ
-            </p>
-          )}
-
-          {myReviews.map(({ review: r, game: g }) => (
-            <div
-              key={r.id}
-              style={{ display: "flex", flexDirection: "column", gap: 8, padding: 14, borderRadius: 10, background: "var(--surface-input)" }}
-            >
-              <div className="row row--between">
-                <span style={{ fontSize: 14, fontWeight: 600 }}>
-                  {r.author} · {g.title}
-                </span>
-                <span className="star" style={{ fontSize: 14 }}>
-                  {"★".repeat(r.stars)}
-                  <span style={{ color: "#3A4150" }}>{"★".repeat(5 - r.stars)}</span>
-                </span>
-              </div>
-              <p className="dim" style={{ margin: 0, fontSize: 14 }}>
-                {r.text}
-              </p>
-
-              {r.devReply ? (
-                <div style={{ padding: "10px 12px", borderRadius: 8, background: "var(--surface-card)" }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)" }}>
-                    คำตอบของคุณ
-                  </span>
-                  <p className="dim" style={{ margin: 0, fontSize: 14 }}>
-                    {r.devReply.text}
-                  </p>
-                </div>
-              ) : replyTo === r.id ? (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (!replyText.trim()) return;
-                    // TODO: ต่อกับ POST /api/reviews/:id/reply
-                    shop.replyReview(r.id, CURRENT_DEV, replyText.trim());
-                    setReplyTo(null);
-                    setReplyText("");
-                  }}
-                  style={{ gap: 8 }}
-                >
-                  <label htmlFor={`reply-${r.id}`} className="sr-only">
-                    ตอบกลับรีวิวของ {r.author}
-                  </label>
-                  <textarea
-                    id={`reply-${r.id}`}
-                    rows={2}
-                    placeholder="เขียนคำตอบถึงผู้เล่น…"
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    style={{ minHeight: 70 }}
-                  />
-                  <div className="row" style={{ gap: 8 }}>
-                    <button type="submit" className="btn btn--primary btn--sm">
-                      ส่งคำตอบ
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn--secondary btn--sm"
-                      onClick={() => {
-                        setReplyTo(null);
-                        setReplyText("");
-                      }}
-                    >
-                      ยกเลิก
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn--secondary btn--sm"
-                  style={{ alignSelf: "flex-start" }}
-                  onClick={() => {
-                    setReplyTo(r.id);
-                    setReplyText("");
-                  }}
-                >
-                  ตอบกลับ
-                </button>
-              )}
-            </div>
-          ))}
+          <h2 style={{ fontSize: 18, fontWeight: 600 }}>
+            รีวิวจากผู้เล่น <span className="soon-badge">เร็ว ๆ นี้</span>
+          </h2>
+          <p className="muted" style={{ margin: 0, fontSize: 14 }}>
+            การดูและตอบกลับรีวิวจะเปิดใช้พร้อมระบบรีวิวในเวอร์ชันถัดไป
+          </p>
         </section>
       </div>
 

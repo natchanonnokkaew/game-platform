@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { PROFILE, RATING_BARS, SCREENSHOTS, SYSTEM_REQS } from "../data/mock";
+import { RATING_BARS, SCREENSHOTS, SYSTEM_REQS } from "../data/mock";
 import { HeartIcon, LockIcon } from "../components/icons";
 import { useShop } from "../store/shop";
-
-const STAR_WORDS = ["ยังไม่ได้เลือก", "แย่", "พอใช้", "ดี", "ดีมาก", "ยอดเยี่ยม"];
+import { SOON } from "../lib/soon";
 
 export default function GameDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -12,9 +11,6 @@ export default function GameDetailPage() {
   const game = shop.findGame(slug ?? "");
 
   const [shot, setShot] = useState(0);
-  const [stars, setStars] = useState(0);
-  const [reviewText, setReviewText] = useState("");
-  const [reviewError, setReviewError] = useState<string | null>(null);
 
   if (!game) {
     return (
@@ -32,9 +28,7 @@ export default function GameDetailPage() {
 
   const current = SCREENSHOTS[shot];
   const inCart = shop.has(game.id);
-  const wish = shop.inWishlist(game.id);
   const owned = shop.owns(game.id);
-  const reviews = shop.reviewsFor(game.id);
   /** ถ้าผู้พัฒนาอัปโหลดภาพหน้าจอจริง ให้ใช้ภาพนั้น ไม่งั้นใช้ภาพจำลอง */
   const shots = game.screenshots.length > 0 ? game.screenshots : null;
 
@@ -224,157 +218,20 @@ export default function GameDetailPage() {
             </div>
           </section>
 
-          <section aria-labelledby="rev-title" className="stack" style={{ gap: 16 }}>
+          {/* รีวิวจากผู้เล่น — ยังไม่เปิดใช้ในขอบเขต 30% (ตาราง reviews อยู่ในส่วนอนาคตของ ER Diagram) */}
+          <section aria-labelledby="rev-title" className="card card--pad" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div className="row row--between" style={{ alignItems: "baseline" }}>
               <h2 id="rev-title" className="section-title">
                 รีวิวจากผู้เล่น
+                <span className="soon-badge" style={{ verticalAlign: "middle" }}>เร็ว ๆ นี้</span>
               </h2>
-              <span className="muted" style={{ fontSize: 14 }}>
-                เฉพาะผู้ที่มีเกมในคลังเท่านั้นที่รีวิวได้
-              </span>
+              <button type="button" className="btn btn--secondary btn--sm is-soon" aria-disabled="true" title={SOON}>
+                เขียนรีวิว
+              </button>
             </div>
-
-            {owned ? (
-              <form
-                aria-label="เขียนรีวิว"
-                className="card card--pad"
-                style={{ display: "flex", flexDirection: "column", gap: 12 }}
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (stars === 0) {
-                    setReviewError("กรุณาให้คะแนนก่อนส่งรีวิว");
-                    return;
-                  }
-                  if (!reviewText.trim()) {
-                    setReviewError("กรุณาเขียนความคิดเห็นของคุณ");
-                    return;
-                  }
-                  // TODO: ต่อกับ POST /api/reviews
-                  shop.addReview(game.id, stars, reviewText.trim(), PROFILE.name, PROFILE.initial);
-                  setStars(0);
-                  setReviewText("");
-                  setReviewError(null);
-                }}
-              >
-                <div className="row" style={{ gap: 12 }}>
-                  <span style={{ fontWeight: 600 }}>ให้คะแนน</span>
-                  <div role="radiogroup" aria-label="คะแนน" style={{ display: "flex", gap: 4 }}>
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <button
-                        key={n}
-                        type="button"
-                        role="radio"
-                        aria-checked={n === stars}
-                        aria-label={`${n} ดาว`}
-                        onClick={() => setStars(n)}
-                        style={{
-                          width: 44,
-                          height: 44,
-                          border: "none",
-                          background: "transparent",
-                          cursor: "pointer",
-                          padding: 0,
-                          fontSize: 28,
-                          lineHeight: "44px",
-                          color: n <= stars ? "var(--warn-fg)" : "#3A4150",
-                        }}
-                      >
-                        ★
-                      </button>
-                    ))}
-                  </div>
-                  <span className="muted" style={{ fontSize: 14 }}>
-                    {STAR_WORDS[stars]}
-                  </span>
-                </div>
-
-                <div className="field">
-                  <label htmlFor="review-text">ความคิดเห็นของคุณ</label>
-                  <textarea
-                    id="review-text"
-                    rows={3}
-                    placeholder="เล่าประสบการณ์ของคุณกับเกมนี้…"
-                    value={reviewText}
-                    onChange={(e) => {
-                      setReviewText(e.target.value);
-                      setReviewError(null);
-                    }}
-                  />
-                </div>
-
-                {reviewError && (
-                  <p role="alert" style={{ margin: 0, color: "var(--danger-fg)", fontSize: 14 }}>
-                    {reviewError}
-                  </p>
-                )}
-
-                <button type="submit" className="btn btn--primary" style={{ alignSelf: "flex-end", height: 44 }}>
-                  ส่งรีวิว
-                </button>
-              </form>
-            ) : (
-              <p className="card card--pad muted" style={{ margin: 0 }}>
-                ต้องมีเกมนี้อยู่ในคลังของคุณก่อนจึงจะเขียนรีวิวได้
-              </p>
-            )}
-
-            {reviews.map((r) => (
-              <article
-                key={r.id}
-                className="card card--pad"
-                style={{ display: "flex", flexDirection: "column", gap: 10 }}
-              >
-                <div className="row row--between">
-                  <span className="row" style={{ gap: 10 }}>
-                    <span
-                      style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: "50%",
-                        background: r.avatarColor,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {r.initial}
-                    </span>
-                    <b>{r.author}</b>
-                  </span>
-                  <span className="star" aria-label={`${r.stars} ดาว`}>
-                    {"★".repeat(r.stars)}
-                    <span style={{ color: "#3A4150" }}>{"★".repeat(5 - r.stars)}</span>
-                  </span>
-                </div>
-                <p className="dim" style={{ margin: 0 }}>
-                  {r.text}
-                </p>
-                <span className="muted" style={{ fontSize: 13 }}>
-                  {r.meta}
-                </span>
-                {r.devReply && (
-                  <div
-                    style={{
-                      marginTop: 4,
-                      padding: "12px 16px",
-                      borderRadius: 10,
-                      background: "var(--surface-input)",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 4,
-                    }}
-                  >
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "var(--accent)" }}>
-                      ตอบกลับจากผู้พัฒนา · {r.devReply.studio}
-                    </span>
-                    <span className="dim" style={{ fontSize: 15 }}>
-                      {r.devReply.text}
-                    </span>
-                  </div>
-                )}
-              </article>
-            ))}
+            <p className="muted" style={{ margin: 0, fontSize: 14 }}>
+              ระบบรีวิวและการตอบกลับจากผู้พัฒนาจะเปิดใช้ในเวอร์ชันถัดไป
+            </p>
           </section>
         </div>
 
@@ -414,15 +271,14 @@ export default function GameDetailPage() {
                 </button>
                 <button
                   type="button"
-                  className="btn btn--block"
-                  aria-pressed={wish}
-                  onClick={() => shop.toggleWishlist(game.id)}
+                  className="btn btn--block is-soon"
+                  aria-disabled="true"
+                  title={SOON}
                   style={{ background: "var(--surface-input)", color: "var(--text)", height: 44 }}
                 >
-                  <span style={{ color: "#FF8FA3", display: "flex" }}>
-                    <HeartIcon size={18} filled={wish} />
-                  </span>
-                  {wish ? "อยู่ใน Wishlist แล้ว" : "เพิ่มใน Wishlist"}
+                  <HeartIcon size={18} />
+                  เพิ่มใน Wishlist
+                  <span className="soon-badge">เร็ว ๆ นี้</span>
                 </button>
               </>
             )}

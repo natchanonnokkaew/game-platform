@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import type { Game } from "../data/mock";
-import { HeartIcon } from "./icons";
 import { useShop } from "../store/shop";
 
 /** ภาพปกจำลอง — ใช้แทนภาพจริงจนกว่าจะต่อ API ที่ส่ง coverUrl มา */
@@ -23,7 +22,6 @@ export function CoverArt({ color, accent }: { color: string; accent: string }) {
 export default function GameCard({ game }: { game: Game }) {
   const shop = useShop();
   const inCart = shop.has(game.id);
-  const wished = shop.inWishlist(game.id);
 
   return (
     <article className="game-card">
@@ -58,25 +56,19 @@ export default function GameCard({ game }: { game: Game }) {
         <div className="game-card__foot">
           <span className="price">฿{game.price}</span>
           <span className="row" style={{ gap: 6, flexWrap: "nowrap" }}>
-            <button
-              type="button"
-              className="icon-btn"
-              style={{ width: 40, height: 40 }}
-              aria-pressed={wished}
-              aria-label={wished ? `นำ ${game.title} ออกจากรายการที่ต้องการ` : `เพิ่ม ${game.title} ในรายการที่ต้องการ`}
-              onClick={() => shop.toggleWishlist(game.id)}
-            >
-              <span style={{ color: wished ? "#FF8FA3" : "var(--text)", display: "flex" }}>
-                <HeartIcon size={18} filled={wished} />
-              </span>
-            </button>
-            <button
-              type="button"
-              className={inCart ? "btn btn--secondary btn--sm" : "btn btn--primary btn--sm"}
-              onClick={() => shop.toggle(game.id)}
-            >
-              {inCart ? "ในตะกร้าแล้ว" : "ใส่ตะกร้า"}
-            </button>
+            {shop.owns(game.id) ? (
+              <Link to="/library" className="btn btn--secondary btn--sm">
+                ✓ ในคลังแล้ว
+              </Link>
+            ) : (
+              <button
+                type="button"
+                className={inCart ? "btn btn--secondary btn--sm" : "btn btn--primary btn--sm"}
+                onClick={() => shop.toggle(game.id)}
+              >
+                {inCart ? "ในตะกร้าแล้ว" : "ใส่ตะกร้า"}
+              </button>
+            )}
           </span>
         </div>
       </div>
