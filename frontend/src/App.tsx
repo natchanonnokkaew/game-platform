@@ -1,6 +1,7 @@
 import { Link, Route, Routes } from "react-router-dom";
 import SiteLayout from "./components/SiteLayout";
 import { ShopProvider } from "./store/shop";
+import { AuthProvider, RequireAuth } from "./store/auth";
 
 import StorePage from "./pages/StorePage";
 import GameDetailPage from "./pages/GameDetailPage";
@@ -30,6 +31,7 @@ function NotFound() {
 
 export default function App() {
   return (
+    <AuthProvider>
     <ShopProvider>
       <Routes>
         {/* หน้าที่มีแถบนำทางหลัก */}
@@ -37,9 +39,9 @@ export default function App() {
           <Route path="/" element={<StorePage />} />
           <Route path="/games/:slug" element={<GameDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
-          <Route path="/checkout/success" element={<OrderSuccessPage />} />
-          <Route path="/library" element={<LibraryPage />} />
+          <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
+          <Route path="/checkout/success" element={<RequireAuth><OrderSuccessPage /></RequireAuth>} />
+          <Route path="/library" element={<RequireAuth><LibraryPage /></RequireAuth>} />
           {/*
             ยังไม่เปิดใช้ในขอบเขต 30% — ไฟล์หน้าเก็บไว้แล้ว เปิดใช้ภายหลังโดยเพิ่ม Route กลับ:
             /community (CommunityPage), /profile (ProfilePage), /profile/edit (EditProfilePage), /wishlist (WishlistPage)
@@ -53,9 +55,10 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
         {/* แดชบอร์ด — ใช้แถบข้างแทน */}
-        <Route path="/developer" element={<DevDashboardPage />} />
-        <Route path="/admin" element={<AdminDashboardPage />} />
+        <Route path="/developer" element={<RequireAuth roles={["DEVELOPER"]}><DevDashboardPage /></RequireAuth>} />
+        <Route path="/admin" element={<RequireAuth roles={["ADMIN"]}><AdminDashboardPage /></RequireAuth>} />
       </Routes>
     </ShopProvider>
+    </AuthProvider>
   );
 }

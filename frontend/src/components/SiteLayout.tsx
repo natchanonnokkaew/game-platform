@@ -3,6 +3,9 @@ import { NavLink, Link, Outlet, useNavigate, useSearchParams } from "react-route
 import { CartIcon, HeartIcon, LogoMark, SearchIcon } from "./icons";
 import { useShop } from "../store/shop";
 import { SOON } from "../lib/soon";
+import { useAuth } from "../store/auth";
+
+const ROLE_LABEL = { PLAYER: "ผู้เล่น", DEVELOPER: "ผู้พัฒนาเกม", ADMIN: "ผู้ดูแลระบบ" } as const;
 
 const MENU = [
   { to: "/", label: "ร้านค้า", end: true },
@@ -13,6 +16,7 @@ const MENU = [
 
 /** เมนูผู้ใช้ — ทางเข้าหน้าแดชบอร์ดและหน้าเข้าสู่ระบบ */
 function UserMenu() {
+  const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -33,15 +37,21 @@ function UserMenu() {
     };
   }, [open]);
 
-  const items = [
+  if (!user) {
+    return (
+      <Link to="/login" className="btn btn--primary" style={{ whiteSpace: "nowrap" }}>
+        เข้าสู่ระบบ
+      </Link>
+    );
+  }
+
+  // แสดงเฉพาะแดชบอร์ดที่บทบาทนี้เข้าได้ (backend ก็ตรวจซ้ำและตอบ 403)
+  const items: ({ to: string; label: string; soon?: boolean } | { divider: true })[] = [
     { to: "/profile", label: "โปรไฟล์ของฉัน", soon: true },
     { to: "/profile/edit", label: "แก้ไขโปรไฟล์", soon: true },
     { to: "/library", label: "คลังเกม" },
-    { divider: true as const },
-    { to: "/developer", label: "แดชบอร์ดผู้พัฒนา" },
-    { to: "/admin", label: "แดชบอร์ดผู้ดูแลระบบ" },
-    { divider: true as const },
-    { to: "/login", label: "ออกจากระบบ" },
+    ...(user.role === "DEVELOPER" ? [{ divider: true as const }, { to: "/developer", label: "แดชบอร์ดผู้พัฒนา" }] : []),
+    ...(user.role === "ADMIN" ? [{ divider: true as const }, { to: "/admin", label: "แดชบอร์ดผู้ดูแลระบบ" }] : []),
   ];
 
   return (
@@ -51,15 +61,23 @@ function UserMenu() {
         className="avatar"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="เมนูผู้ใช้"
+        aria-label={`เมนูผู้ใช้ ${user.displayName}`}
+        title={user.displayName}
         onClick={() => setOpen((v) => !v)}
         style={{ border: "none", cursor: "pointer", font: "inherit", padding: 0 }}
       >
-        ณ
+        {user.displayName.trim().charAt(0).toUpperCase() || "?"}
       </button>
 
       {open && (
         <div role="menu" className="user-menu">
+          <div style={{ padding: "8px 12px 10px", display: "flex", flexDirection: "column", gap: 2 }}>
+            <b style={{ fontSize: 15 }}>{user.displayName}</b>
+            <span className="muted" style={{ fontSize: 13 }}>
+              {user.email} · {ROLE_LABEL[user.role]}
+            </span>
+          </div>
+          <span className="user-menu__divider" />
           {items.map((item, i) =>
             "divider" in item ? (
               <span key={`d${i}`} className="user-menu__divider" />
@@ -90,6 +108,20 @@ function UserMenu() {
               </Link>
             )
           )}
+          <span className="user-menu__divider" />
+          <button
+            type="button"
+            role="menuitem"
+            className="user-menu__item"
+            style={{ width: "100%", border: "none", background: "transparent", font: "inherit", cursor: "pointer", textAlign: "left" }}
+            onClick={() => {
+              setOpen(false);
+              logout();
+              navigate("/");
+            }}
+          >
+            ออกจากระบบ
+          </button>
         </div>
       )}
     </div>

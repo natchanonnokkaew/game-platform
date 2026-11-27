@@ -1,7 +1,8 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import { LogoMark } from "./icons";
 import { SOON } from "../lib/soon";
+import { useAuth } from "../store/auth";
 
 export interface SidebarItem {
   label: string;
@@ -29,6 +30,9 @@ export default function DashboardLayout({
   account,
   children,
 }: DashboardLayoutProps) {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
   return (
     <div className="dash">
       <aside className="sidebar">
@@ -89,9 +93,17 @@ export default function DashboardLayout({
 
         <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
           {account}
-          <Link to="/login" className="sidebar__link" style={{ color: "var(--text-muted)" }}>
+          <button
+            type="button"
+            className="sidebar__link"
+            style={{ color: "var(--text-muted)", border: "none", background: "transparent", font: "inherit", cursor: "pointer", textAlign: "left" }}
+            onClick={() => {
+              logout();
+              navigate("/");
+            }}
+          >
             ออกจากระบบ
-          </Link>
+          </button>
         </div>
       </aside>
 

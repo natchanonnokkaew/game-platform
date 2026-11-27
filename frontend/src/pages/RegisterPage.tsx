@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
+import { homeFor, useAuth } from "../store/auth";
 
 const BENEFITS = [
   "ซื้อเกมและรับ License Key ทันที",
@@ -27,7 +28,7 @@ function scorePassword(pw: string) {
 export default function RegisterPage() {
   const [role, setRole] = useState<Role>("PLAYER");
   const [displayName, setDisplayName] = useState("");
-  const [username, setUsername] = useState("");
+  const [studioName, setStudioName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -36,17 +37,21 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
+  const { register } = useAuth();
 
   const strength = useMemo(() => scorePassword(password), [password]);
   const matches = confirm.length > 0 && confirm === password;
-  const usernameOk = /^[a-z0-9_]{3,20}$/.test(username);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
-    if (!displayName.trim() || !username.trim() || !email.trim()) {
-      setError("กรุณากรอกชื่อที่แสดง ชื่อผู้ใช้ และอีเมลให้ครบ");
+    if (displayName.trim().length < 2 || !email.trim()) {
+      setError("กรุณากรอกชื่อที่แสดง (อย่างน้อย 2 ตัวอักษร) และอีเมลให้ครบ");
+      return;
+    }
+    if (role === "DEVELOPER" && studioName.trim().length > 0 && studioName.trim().length < 2) {
+      setError("ชื่อสตูดิโอต้องมีอย่างน้อย 2 ตัวอักษร");
       return;
     }
     if (!strength.checks.length) {
@@ -64,11 +69,24 @@ export default function RegisterPage() {
 
     setBusy(true);
     try {
-      // TODO: ต่อกับ POST /api/auth/register
-      await new Promise((r) => setTimeout(r, 400));
-      navigate("/login");
-    } catch {
-      setError("สมัครสมาชิกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      const me = await register({
+        email: email.trim(),
+        password,
+        displayName: displayName.trim(),
+        role,
+        // ไม่กรอกชื่อสตูดิโอ → backend ใช้ชื่อที่แสดงแทน
+        studioName: role === "DEVELOPER" && studioName.trim() ? studioName.trim() : undefined,
+      });
+      // สมัครเสร็จเข้าสู่ระบบให้ทันที ผู้พัฒนาจะไปหน้าแดชบอร์ดเพื่อรอการอนุมัติบัญชี
+      navigate(homeFor(me.role), { replace: true });
+    } catch (err) {
+      setError(
+        err instanceof TypeError
+          ? "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจว่า backend เปิดอยู่ที่พอร์ต 4000"
+          : err instanceof Error
+            ? err.message
+            : "สมัครสมาชิกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง"
+      );
     } finally {
       setBusy(false);
     }
@@ -151,7 +169,7 @@ export default function RegisterPage() {
           </div>
         </fieldset>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: role === "DEVELOPER" ? "1fr 1fr" : "1fr", gap: 12 }}>
           <div className="field">
             <label htmlFor="reg-name">ชื่อที่แสดง</label>
             <input
@@ -163,34 +181,19 @@ export default function RegisterPage() {
               onChange={(e) => setDisplayName(e.target.value)}
             />
           </div>
-          <div className="field">
-            <label htmlFor="reg-username">ชื่อผู้ใช้</label>
-            <div style={{ position: "relative" }}>
-              <span
-                aria-hidden="true"
-                style={{ position: "absolute", left: 16, top: 11, color: "var(--text-muted)" }}
-              >
-                @
-              </span>
+          {role === "DEVELOPER" && (
+            <div className="field">
+              <label htmlFor="reg-studio">ชื่อสตูดิโอ</label>
               <input
-                id="reg-username"
+                id="reg-studio"
                 type="text"
-                autoComplete="username"
-                placeholder="natchanon"
-                value={username}
-                onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                style={{ paddingLeft: 34 }}
+                autoComplete="organization"
+                placeholder="เว้นว่างได้ จะใช้ชื่อที่แสดงแทน"
+                value={studioName}
+                onChange={(e) => setStudioName(e.target.value)}
               />
             </div>
-            {username.length > 0 && (
-              <span
-                className="field__hint"
-                style={{ color: usernameOk ? "var(--ok-fg)" : "var(--warn-fg)" }}
-              >
-                {usernameOk ? "✓ ใช้ชื่อนี้ได้" : "ใช้ a-z, 0-9 และ _ ความยาว 3–20 ตัว"}
-              </span>
-            )}
-          </div>
+          )}
         </div>
 
         <div className="field">
@@ -203,7 +206,6 @@ export default function RegisterPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <span className="field__hint">เราจะส่งลิงก์ยืนยันไปที่อีเมลนี้</span>
         </div>
 
         <div className="field">

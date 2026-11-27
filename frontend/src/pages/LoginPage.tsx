@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
 import { LockIcon } from "../components/icons";
+import { homeFor, useAuth } from "../store/auth";
 
 const STATS = [
   { value: "126", label: "เกมบนแพลตฟอร์ม" },
@@ -10,30 +11,40 @@ const STATS = [
 ];
 
 export default function LoginPage() {
-  const [identifier, setIdentifier] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
+  /** หน้าที่ผู้ใช้พยายามเข้าก่อนถูกส่งมาหน้านี้ */
+  const from = (location.state as { from?: string } | null)?.from;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
-    if (!identifier.trim() || !password) {
-      setError("กรุณากรอกอีเมลหรือชื่อผู้ใช้ และรหัสผ่าน");
+    if (!email.trim() || !password) {
+      setError("กรุณากรอกอีเมลและรหัสผ่าน");
       return;
     }
 
     setBusy(true);
     try {
-      // TODO: ต่อกับ POST /api/auth/login แล้วเก็บ token ผ่าน lib/api.ts
-      await new Promise((r) => setTimeout(r, 400));
-      navigate("/library");
-    } catch {
-      setError("อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง");
+      const me = await login(email.trim(), password, remember);
+      navigate(from ?? homeFor(me.role), { replace: true });
+    } catch (err) {
+      // ข้อความจาก backend เช่น "อีเมลหรือรหัสผ่านไม่ถูกต้อง" หรือเชื่อมต่อเซิร์ฟเวอร์ไม่ได้
+      setError(
+        err instanceof TypeError
+          ? "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจว่า backend เปิดอยู่ที่พอร์ต 4000"
+          : err instanceof Error
+            ? err.message
+            : "อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง"
+      );
     } finally {
       setBusy(false);
     }
@@ -62,7 +73,7 @@ export default function LoginPage() {
       <div>
         <h1 style={{ fontSize: 34, fontWeight: 700 }}>เข้าสู่ระบบ</h1>
         <p className="muted" style={{ margin: "6px 0 0" }}>
-          ใช้อีเมลหรือชื่อผู้ใช้ที่สมัครไว้
+          ใช้อีเมลที่สมัครไว้
         </p>
       </div>
 
@@ -75,14 +86,14 @@ export default function LoginPage() {
 
       <form onSubmit={handleSubmit} style={{ gap: 18 }}>
         <div className="field">
-          <label htmlFor="login-id">อีเมลหรือชื่อผู้ใช้</label>
+          <label htmlFor="login-id">อีเมล</label>
           <input
             id="login-id"
-            type="text"
-            autoComplete="username"
+            type="email"
+            autoComplete="email"
             placeholder="natchanon@example.com"
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
         </div>
 

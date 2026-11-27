@@ -1,15 +1,34 @@
-// ตัวกลางเรียก API ตัวเดียวของทั้งแอป — เก็บ token ไว้ใน localStorage
+// ตัวกลางเรียก API ตัวเดียวของทั้งแอป
+// token เก็บใน localStorage เมื่อเลือก "จดจำฉันไว้" ไม่อย่างนั้นเก็บใน sessionStorage (ปิดแท็บแล้วหลุด)
 const TOKEN_KEY = "gp_token";
+
+function read(store: Storage) {
+  try {
+    return store.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
 
 export const auth = {
   get token() {
-    return localStorage.getItem(TOKEN_KEY);
+    return read(localStorage) ?? read(sessionStorage);
   },
-  set(token: string) {
-    localStorage.setItem(TOKEN_KEY, token);
+  set(token: string, remember = true) {
+    auth.clear();
+    try {
+      (remember ? localStorage : sessionStorage).setItem(TOKEN_KEY, token);
+    } catch {
+      /* เบราว์เซอร์ไม่อนุญาตให้เก็บ — ใช้งานต่อได้จนรีเฟรช */
+    }
   },
   clear() {
-    localStorage.removeItem(TOKEN_KEY);
+    try {
+      localStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(TOKEN_KEY);
+    } catch {
+      /* ไม่มีอะไรต้องลบ */
+    }
   },
 };
 
@@ -38,6 +57,18 @@ export interface User {
   email: string;
   displayName: string;
   role: Role;
+}
+
+/** ข้อมูลจาก GET /api/auth/me (มีโปรไฟล์ผู้พัฒนาถ้าเป็น DEVELOPER) */
+export interface Me extends User {
+  avatarUrl?: string | null;
+  developerProfile?: { id: string; studioName: string; status: "PENDING" | "APPROVED" | "REJECTED" } | null;
+}
+
+/** คำตอบของ POST /api/auth/login และ /api/auth/register */
+export interface AuthResponse {
+  token: string;
+  user: User;
 }
 
 export interface Game {
