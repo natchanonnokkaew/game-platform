@@ -87,6 +87,29 @@ game-platform/
         └── pages/            # หน้าจอต่าง ๆ
 ```
 
+## ตั้งค่าฐานข้อมูลแบบคำสั่งเดียว (Windows)
+
+หลังติดตั้ง PostgreSQL แล้ว เปิด PowerShell ในโฟลเดอร์โปรเจกต์ แล้วสั่ง
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\setup-db.ps1
+```
+
+สคริปต์จะถามรหัสผ่านของผู้ใช้ `postgres` แล้วสร้างฐานข้อมูล `gameplatform` เขียน `backend/.env` สร้างตารางด้วย `prisma migrate` และใส่ข้อมูลตั้งต้นด้วย `npm run seed`
+(ถ้าติดตั้ง PostgreSQL ไว้ที่อื่น ให้ระบุ `-PgBin "C:\...\bin"`)
+
+ข้อมูลตั้งต้นสำหรับสาธิตงาน 30% — รหัสผ่านทุกบัญชี `password123`
+
+| บัญชี | บทบาท |
+| --- | --- |
+| `admin@example.com` | ผู้ดูแลระบบ |
+| `dev@example.com` | ผู้พัฒนา Lotus Forge (มีเกมขายอยู่ รอตรวจ และถูกปฏิเสธ) |
+| `player@example.com` | ผู้เล่น (มีเกมในคลัง 2 เกม และมีเกมในตะกร้า) |
+| `kinnaree@example.com` | ผู้พัฒนาที่ยังรออนุมัติบัญชี |
+
+มีหมวดหมู่ 8 หมวด · เกมอนุมัติแล้ว 12 เกม รอตรวจ 4 เกม ถูกปฏิเสธ 1 เกม · คำสั่งซื้อครบสถานะ PAID / FAILED / REFUNDED · License Key · รีวิวและการตอบกลับ
+
 ## รายการ API
 
 | Method | Path | ใครเรียกได้ |

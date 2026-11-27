@@ -18,6 +18,16 @@ app.use(express.json());
 // ภาพหน้าปก ภาพหน้าจอ และวิดีโอแนะนำเกม (สาธารณะ) — ไฟล์เกมไม่อยู่ในโฟลเดอร์นี้
 app.use("/api/media", express.static(mediaDir, { maxAge: "7d" }));
 
+// หน้าแรกของ API — เปิด http://localhost:4000 แล้วจะเห็นว่าเซิร์ฟเวอร์ทำงานอยู่ และมีเส้นทางอะไรให้ลอง
+app.get("/", (_req, res) =>
+  res.json({
+    name: "HAFTSTAR GAME API",
+    status: "พร้อมใช้งาน",
+    try: ["/api/health", "/api/games", "/api/games/echo-of-siam"],
+    frontend: env.corsOrigin,
+  })
+);
+
 app.get("/api/health", (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
 app.use("/api/auth", authRouter);
