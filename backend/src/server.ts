@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { env } from "./lib/env";
+import { mediaDir } from "./lib/upload";
 import { authRouter } from "./routes/auth";
 import { gamesRouter } from "./routes/games";
 import { cartRouter, wishlistRouter } from "./routes/cart";
@@ -13,6 +14,9 @@ const app = express();
 
 app.use(cors({ origin: env.corsOrigin, credentials: true }));
 app.use(express.json());
+
+// ภาพหน้าปก ภาพหน้าจอ และวิดีโอแนะนำเกม (สาธารณะ) — ไฟล์เกมไม่อยู่ในโฟลเดอร์นี้
+app.use("/api/media", express.static(mediaDir, { maxAge: "7d" }));
 
 app.get("/api/health", (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 

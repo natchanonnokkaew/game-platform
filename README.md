@@ -98,6 +98,12 @@ game-platform/
 | GET | `/api/games/:slug` | ทุกคน (guest) |
 | POST | `/api/games` | Developer (อนุมัติแล้ว) |
 | GET | `/api/games/mine/list` | Developer |
+| PATCH | `/api/games/:id` | Developer (เจ้าของเกม) |
+| POST/DELETE | `/api/games/:id/cover` | Developer (เจ้าของเกม) |
+| POST | `/api/games/:id/screenshots` | Developer (เจ้าของเกม) |
+| DELETE | `/api/games/:id/screenshots/:shotId` | Developer (เจ้าของเกม) |
+| POST/DELETE | `/api/games/:id/video` | Developer (เจ้าของเกม) |
+| GET | `/api/media/:file` | ทุกคน (ภาพหน้าปก ภาพหน้าจอ วิดีโอ) |
 | GET/POST/DELETE | `/api/cart` | Player |
 | GET/POST/DELETE | `/api/wishlist` | Player |
 | POST | `/api/orders/checkout` | Player |
